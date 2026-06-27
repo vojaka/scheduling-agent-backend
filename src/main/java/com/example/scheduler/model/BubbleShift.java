@@ -25,4 +25,18 @@ public class BubbleShift {
 
     @JsonProperty("notes")
     private String notes;
+
+    @JsonProperty("Assigned Company")
+    private String assignedCompany;
+
+    @JsonProperty("Type")
+    private String type;
+
+    public BubbleShift(String id, String assignedUser, String startTime, String endTime, String notes) {
+        this.id = id;
+        this.assignedUser = assignedUser;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.notes = notes;
+    }
 }
