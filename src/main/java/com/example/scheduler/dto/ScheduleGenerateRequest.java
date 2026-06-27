@@ -9,4 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ScheduleGenerateRequest {
     private String prompt;
+    private Boolean commit;
 }
