@@ -1,10 +1,8 @@
 services:
   - type: web
     name: scheduling-agent-backend
-    env: java
+    env: docker
     plan: free
-    buildCommand: "mvn clean package -DskipTests"
-    startCommand: "java -XX:TieredStopAtLevel=1 -XX:+UseSerialGC -Xms128m -Xmx256m -jar target/scheduling-agent-backend-1.0.0.jar"
     envVars:
       - key: GEMINI_API_KEY
         sync: false
