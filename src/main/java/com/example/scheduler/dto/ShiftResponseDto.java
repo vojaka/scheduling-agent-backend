@@ -29,12 +29,20 @@ public class ShiftResponseDto {
     private boolean isCancellable;
     private boolean isModifiable;
 
+    @JsonProperty("Assigned Company")
+    private String assignedCompany;
+
+    @JsonProperty("Type")
+    private String type;
+
     public ShiftResponseDto(BubbleShift shift) {
         this.id = shift.getId();
         this.assignedUser = shift.getAssignedUser();
         this.startTime = shift.getStartTime();
         this.endTime = shift.getEndTime();
         this.notes = shift.getNotes();
+        this.assignedCompany = shift.getAssignedCompany();
+        this.type = shift.getType();
         
         calculateDynamicFields();
     }
