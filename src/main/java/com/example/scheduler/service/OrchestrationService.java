@@ -22,7 +22,9 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -99,6 +101,13 @@ public class OrchestrationService {
 
     private List<BubbleShift> runRealGemini(String userPrompt, List<BubbleUser> workers, List<BubbleWageRate> wages, List<String> logs) {
         try {
+            // Get current date context in Estonia
+            ZoneId estoniaZone = ZoneId.of("Europe/Tallinn");
+            ZonedDateTime now = ZonedDateTime.now(estoniaZone);
+            ZonedDateTime nextMonday = now.with(TemporalAdjusters.nextOrSame(java.time.DayOfWeek.MONDAY));
+            String todayStr = now.format(DateTimeFormatter.ofPattern("EEEE, yyyy-MM-dd"));
+            String nextMondayStr = nextMonday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
             // Build prompt
             StringBuilder contextBuilder = new StringBuilder();
             contextBuilder.append("Active workers (Users) in the system:\n");
@@ -113,12 +122,13 @@ public class OrchestrationService {
                         r.getUser(), r.getCompany(), r.getRate()));
             }
 
-            String systemPrompt = "You are an expert workforce scheduling agent. Your job is to assign workers to required slots for the upcoming week.\n" +
+            String systemPrompt = "You are an expert workforce scheduling agent. Today's date is " + todayStr + ". " +
+                    "Your job is to assign workers to required slots for the upcoming week starting on Monday, " + nextMondayStr + ".\n" +
                     "Generate shifts that cover the work demands based on worker availability, preferences, and wage rates.\n" +
                     "You must output a JSON object containing an array 'proposedShifts'. Each item in 'proposedShifts' must contain:\n" +
                     "- 'assignedUser': The exact name or ID of the assigned worker.\n" +
-                    "- 'startTime': The ISO-8601 UTC date string when the shift starts (e.g. 2026-06-29T08:00:00Z).\n" +
-                    "- 'endTime': The ISO-8601 UTC date string when the shift ends (e.g. 2026-06-29T16:00:00Z).\n" +
+                    "- 'startTime': The ISO-8601 UTC date string when the shift starts (e.g. " + nextMondayStr + "T08:00:00Z).\n" +
+                    "- 'endTime': The ISO-8601 UTC date string when the shift ends (e.g. " + nextMondayStr + "T16:00:00Z).\n" +
                     "- 'notes': Simple comments about the shift.\n\n" +
                     "Strict Compliance Rules (Estonia):\n" +
                     "1. No worker can work a shift longer than 12 hours.\n" +
