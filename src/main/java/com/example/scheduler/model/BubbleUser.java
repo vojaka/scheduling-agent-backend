@@ -1,6 +1,7 @@
 package com.example.scheduler.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -23,6 +24,7 @@ public class BubbleUser {
     @JsonAlias({"role", "role_list_option___user_role", "primary_login_role_option___user_role"})
     private Object roleObject;
 
+    @JsonIgnore
     public String getRole() {
         if (roleObject == null) {
             return "Worker";
