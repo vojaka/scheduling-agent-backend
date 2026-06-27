@@ -34,10 +34,43 @@ public class ScheduleController {
 
     @PostMapping("/generate")
     public ResponseEntity<ScheduleGenerateResponse> generate(@RequestBody ScheduleGenerateRequest request) {
-        log.info("API request received for schedule generation. Prompt: {}", request.getPrompt());
+        log.info("API request received for schedule generation. Prompt: {}, auto-commit: {}", 
+                request.getPrompt(), request.getCommit());
         
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
         ScheduleGenerateResponse response = orchestrationService.generateSchedule(prompt);
+
+        if (Boolean.TRUE.equals(request.getCommit())) {
+            if (response.getValidationReport() != null && response.getValidationReport().isValid() && response.getProposedShifts() != null) {
+                log.info("Schedule is valid. Automatically committing {} shifts back to Bubble.", response.getProposedShifts().size());
+                response.getOrchestratorLogs().add("Schedule is valid. Automatically committing proposed shifts to Bubble...");
+                
+                int successCount = 0;
+                for (com.example.scheduler.dto.ShiftResponseDto shiftDto : response.getProposedShifts()) {
+                    try {
+                        BubbleShift bs = new BubbleShift();
+                        bs.setAssignedUser(shiftDto.getAssignedUser());
+                        bs.setStartTime(shiftDto.getStartTime());
+                        bs.setEndTime(shiftDto.getEndTime());
+                        bs.setNotes(shiftDto.getNotes());
+                        bs.setAssignedCompany(shiftDto.getAssignedCompany());
+                        bs.setType(shiftDto.getType());
+
+                        BubbleShift created = bubbleClient.createShift(bs);
+                        if (created != null && created.getId() != null) {
+                            shiftDto.setId(created.getId());
+                            successCount++;
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to auto-commit shift to Bubble user {}: {}", shiftDto.getAssignedUser(), e.getMessage());
+                    }
+                }
+                response.getOrchestratorLogs().add("Successfully automatically committed " + successCount + " shifts to Bubble.");
+            } else {
+                log.warn("Auto-commit skipped because proposed schedule was invalid or empty.");
+                response.getOrchestratorLogs().add("Auto-commit skipped because proposed schedule was invalid or empty.");
+            }
+        }
         
         return ResponseEntity.ok(response);
     }
