@@ -1,0 +1,58 @@
+### API Requests Helper File for Java Scheduler Middleware
+# Use these requests to test the middleware locally.
+# Default Dev API Key: default-dev-key
+
+@baseUrl = http://localhost:8080
+@apiKey = default-dev-key
+
+### 1. Test Generate Schedule (Simulation Mode - SUCCESS)
+# In simulation mode, this generates a fully compliant schedule.
+POST {{baseUrl}}/api/schedule/generate
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+{
+  "prompt": "Schedule shifts for upcoming week"
+}
+
+
+### 2. Test Generate Schedule (Simulation Mode - WITH COMPLIANCE FAILURES)
+# Sending the keyword "fail" or "violation" triggers mock compliance failures (Estonian labor law checks).
+POST {{baseUrl}}/api/schedule/generate
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+{
+  "prompt": "Schedule shifts, but make Tom fail validation to test rules"
+}
+
+
+### 3. Test Generate Schedule (Unauthorized Request - NO API KEY)
+POST {{baseUrl}}/api/schedule/generate
+Content-Type: application/json
+
+{
+  "prompt": "Schedule standard week"
+}
+
+
+### 4. Test Commit Schedule (Draft to Bubble database)
+# Replace user names and times with actual records for testing.
+POST {{baseUrl}}/api/schedule/commit
+Content-Type: application/json
+X-API-KEY: {{apiKey}}
+
+[
+  {
+    "Assigned User": "Tom",
+    "Time - Start Time": "2026-06-29T08:00:00Z",
+    "Time - End Time": "2026-06-29T16:00:00Z",
+    "notes": "Committed standard day shift"
+  },
+  {
+    "Assigned User": "Lily",
+    "Time - Start Time": "2026-06-30T22:00:00Z",
+    "Time - End Time": "2026-07-01T06:00:00Z",
+    "notes": "Committed night shift"
+  }
+]
