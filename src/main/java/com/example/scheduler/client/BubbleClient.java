@@ -4,6 +4,7 @@ import com.example.scheduler.model.BubbleShift;
 import com.example.scheduler.model.BubbleUser;
 import com.example.scheduler.model.BubbleWageRate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,14 +87,19 @@ public class BubbleClient {
             log.info("Creating shift in Bubble for user: {} ({} - {})", 
                     shift.getAssignedUser(), shift.getStartTime(), shift.getEndTime());
             
-            // Note: Bubble Data API returns the created object inside a wrapper, or directly depending on version.
-            // Typically, POST /obj/shift returns a JSON with { "status": "success", "id": "created-id" }
-            // Let's perform a simple POST and return the result.
+            BubbleShiftPostPayload payload = new BubbleShiftPostPayload();
+            payload.setAssignedCompany(shift.getAssignedCompany());
+            payload.setAssignedUser(shift.getAssignedUser());
+            payload.setEndTime(shift.getEndTime());
+            payload.setNotes(shift.getNotes());
+            payload.setStartTime(shift.getStartTime());
+            payload.setType(shift.getType());
+
             BubbleCreationResponse response = addAuthHeader(
                     restClient.post()
                             .uri("/shift")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .body(shift)
+                            .body(payload)
             )
             .retrieve()
             .body(BubbleCreationResponse.class);
@@ -106,6 +112,28 @@ public class BubbleClient {
             log.error("Failed to create shift in Bubble: {}", e.getMessage());
             throw new RuntimeException("Bubble create failed: " + e.getMessage(), e);
         }
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BubbleShiftPostPayload {
+        @JsonProperty("assigned_company_custom____merchant")
+        private String assignedCompany;
+
+        @JsonProperty("assigned_user_user")
+        private String assignedUser;
+
+        @JsonProperty("end_time_date")
+        private String endTime;
+
+        @JsonProperty("notes_text")
+        private String notes;
+
+        @JsonProperty("start_time_date")
+        private String startTime;
+
+        @JsonProperty("type_option_shift_type")
+        private String type;
     }
 
     @Data
