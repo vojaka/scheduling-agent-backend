@@ -369,12 +369,12 @@ public class OrchestrationService {
                         }
                         current = current.plusMinutes(15);
                     }
-                    shift.setType(isNight ? "Night" : "Standard");
+                    shift.setType(isNight ? "Night" : "Regular");
                 } catch (Exception e) {
-                    shift.setType("Standard");
+                    shift.setType("Regular");
                 }
             } else {
-                shift.setType("Standard");
+                shift.setType("Regular");
             }
         }
     }
