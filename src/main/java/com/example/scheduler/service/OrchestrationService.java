@@ -201,7 +201,16 @@ public class OrchestrationService {
 
                 GeminiOutput parsedJson = objectMapper.readValue(text, GeminiOutput.class);
                 if (parsedJson != null && parsedJson.getProposedShifts() != null) {
-                    return parsedJson.getProposedShifts();
+                    List<BubbleShift> shifts = new ArrayList<>();
+                    for (GeminiShift gs : parsedJson.getProposedShifts()) {
+                        BubbleShift bs = new BubbleShift();
+                        bs.setAssignedUser(gs.getAssignedUser());
+                        bs.setStartTime(gs.getStartTime());
+                        bs.setEndTime(gs.getEndTime());
+                        bs.setNotes(gs.getNotes());
+                        shifts.add(bs);
+                    }
+                    return shifts;
                 }
             }
 
@@ -398,6 +407,15 @@ public class OrchestrationService {
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class GeminiOutput {
-        private List<BubbleShift> proposedShifts;
+        private List<GeminiShift> proposedShifts;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class GeminiShift {
+        private String assignedUser;
+        private String startTime;
+        private String endTime;
+        private String notes;
     }
 }
