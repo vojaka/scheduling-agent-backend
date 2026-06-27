@@ -1,5 +1,6 @@
 package com.example.scheduler.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -15,11 +16,14 @@ public class BubbleWageRate {
     private String id;
 
     @JsonProperty("Company")
+    @JsonAlias({"company", "company_custom____merchant", "company_custom____company"})
     private String company;
 
     @JsonProperty("Rate")
+    @JsonAlias({"rate", "rate_number"})
     private Double rate;
 
     @JsonProperty("User")
+    @JsonAlias({"user", "user_user"})
     private String user;
 }
