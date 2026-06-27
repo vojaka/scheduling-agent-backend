@@ -10,5 +10,7 @@ services:
         sync: false
       - key: BUBBLE_API_TOKEN
         sync: false
+      - key: BUBBLE_API_BASE_URL
+        value: https://comforthub.ee/version-test/api/1.1/obj
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
