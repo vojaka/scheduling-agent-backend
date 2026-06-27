@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,6 +75,9 @@ public class OrchestrationService {
             logs.add("[LIVE MODE] Running real Gemini model generation via API...");
             proposedShifts = runRealGemini(userPrompt, workers, wages, logs);
         }
+
+        // Enrich shifts with company and type before validation
+        enrichShifts(proposedShifts, workers, wages);
 
         // 2. Run Deterministic Validation (Estonian labor laws & constraints)
         logs.add("Sending proposed shifts to Deterministic Validator Gatekeeper...");
@@ -278,6 +283,81 @@ public class OrchestrationService {
         }
 
         return shifts;
+    }
+
+    private void enrichShifts(List<BubbleShift> shifts, List<BubbleUser> workers, List<BubbleWageRate> wages) {
+        if (shifts == null || shifts.isEmpty()) {
+            return;
+        }
+
+        // Map worker name/id to their company name from WageRate
+        Map<String, String> workerToCompany = new HashMap<>();
+        
+        // Build map workerName -> workerId
+        Map<String, String> nameToId = new HashMap<>();
+        for (BubbleUser w : workers) {
+            if (w.getName() != null && w.getId() != null) {
+                nameToId.put(w.getName(), w.getId());
+            }
+        }
+
+        // Look up companies from wage rates
+        for (BubbleWageRate rate : wages) {
+            String rateUser = rate.getUser();
+            if (rateUser == null) continue;
+            
+            workerToCompany.put(rateUser, rate.getCompany());
+            
+            if (nameToId.containsKey(rateUser)) {
+                workerToCompany.put(nameToId.get(rateUser), rate.getCompany());
+            }
+            
+            for (Map.Entry<String, String> entry : nameToId.entrySet()) {
+                if (entry.getValue().equals(rateUser)) {
+                    workerToCompany.put(entry.getKey(), rate.getCompany());
+                }
+            }
+        }
+
+        ZoneId estoniaZone = ZoneId.of("Europe/Tallinn");
+
+        for (BubbleShift shift : shifts) {
+            String user = shift.getAssignedUser();
+            
+            // 1. Set Company
+            if (user != null) {
+                String company = workerToCompany.get(user);
+                if (company != null) {
+                    shift.setAssignedCompany(company);
+                }
+            }
+
+            // 2. Set Type dynamically (Estonian law standard: 22:00 to 06:00 is Night shift)
+            if (shift.getStartTime() != null && shift.getEndTime() != null) {
+                try {
+                    Instant startInstant = Instant.parse(shift.getStartTime());
+                    Instant endInstant = Instant.parse(shift.getEndTime());
+                    ZonedDateTime startEst = ZonedDateTime.ofInstant(startInstant, estoniaZone);
+                    ZonedDateTime endEst = ZonedDateTime.ofInstant(endInstant, estoniaZone);
+
+                    boolean isNight = false;
+                    ZonedDateTime current = startEst;
+                    while (current.isBefore(endEst)) {
+                        int hour = current.getHour();
+                        if (hour >= 22 || hour < 6) {
+                            isNight = true;
+                            break;
+                        }
+                        current = current.plusMinutes(15);
+                    }
+                    shift.setType(isNight ? "Night" : "Standard");
+                } catch (Exception e) {
+                    shift.setType("Standard");
+                }
+            } else {
+                shift.setType("Standard");
+            }
+        }
     }
 
     // JSON DTO Classes mapping Gemini REST API Candidate Response envelopes
