@@ -137,6 +137,7 @@ public class BubbleClient {
             payload.setStartTime(shift.getStartTime());
             payload.setType(shift.getType());
             payload.setStatus(shift.getStatus());
+            payload.setAssignedStore(shift.getAssignedStore());
 
             BubbleCreationResponse response = addAuthHeader(
                     restClient.post()
@@ -180,6 +181,9 @@ public class BubbleClient {
 
         @JsonProperty("status_option_shift_approval_status")
         private String status;
+
+        @JsonProperty("assigned_store_custom_store")
+        private String assignedStore;
     }
 
     @Data

@@ -87,22 +87,41 @@ public class OrchestrationService {
             logs.add("Filtered workers list to " + workers.size() + " specified workers based on input parameter.");
         }
 
-        // Resolve store availability (opening hours) for the target company
-        BubbleAvailability storeAvailability = null;
+        // Resolve store availability (opening hours) and associated company ID robustly
+        String resolvedCompanyId = companyId;
+        String resolvedStoreId = null;
+        BubbleStore resolvedStore = null;
+
         if (companyId != null && !companyId.trim().isEmpty()) {
-            // Find the store record that belongs to this company
-            String storeAvailabilityId = stores.stream()
+            // 1. Try to find store by store ID
+            resolvedStore = stores.stream()
                     .filter(s -> !Boolean.TRUE.equals(s.getIsDeleted()))
-                    .filter(s -> companyId.equals(s.getCompany()))
-                    .map(BubbleStore::getAvailabilityId)
-                    .filter(java.util.Objects::nonNull)
+                    .filter(s -> companyId.equals(s.getId()))
                     .findFirst().orElse(null);
 
-            if (storeAvailabilityId != null) {
-                storeAvailability = allAvailability.stream()
-                        .filter(a -> storeAvailabilityId.equals(a.getId()))
+            if (resolvedStore != null) {
+                resolvedCompanyId = resolvedStore.getCompany();
+                resolvedStoreId = resolvedStore.getId();
+                logs.add("Resolved store by ID: " + resolvedStore.getName() + " (Company ID: " + resolvedCompanyId + ")");
+            } else {
+                // 2. Try to find store by company ID
+                resolvedStore = stores.stream()
+                        .filter(s -> !Boolean.TRUE.equals(s.getIsDeleted()))
+                        .filter(s -> companyId.equals(s.getCompany()))
                         .findFirst().orElse(null);
+                if (resolvedStore != null) {
+                    resolvedStoreId = resolvedStore.getId();
+                    logs.add("Resolved store by Company ID: " + resolvedStore.getName() + " (Store ID: " + resolvedStoreId + ")");
+                }
             }
+        }
+
+        BubbleAvailability storeAvailability = null;
+        if (resolvedStore != null && resolvedStore.getAvailabilityId() != null) {
+            String storeAvailabilityId = resolvedStore.getAvailabilityId();
+            storeAvailability = allAvailability.stream()
+                    .filter(a -> storeAvailabilityId.equals(a.getId()))
+                    .findFirst().orElse(null);
 
             if (storeAvailability != null) {
                 logs.add("Resolved store opening hours: workdays " + storeAvailability.getWorkdayStartHour()
@@ -110,12 +129,14 @@ public class OrchestrationService {
                         + storeAvailability.getWeekendStartHour() + ":00-" + storeAvailability.getWeekendEndHour()
                         + ":00, open days: " + storeAvailability.getAvailableDays());
             } else {
-                logs.add("No store availability found for company " + companyId + " — shifts will use default hours.");
+                logs.add("No store availability found for store " + resolvedStore.getName() + " — shifts will use default hours.");
             }
         }
-        if (companyId != null && !companyId.trim().isEmpty()) {
+
+        if (resolvedCompanyId != null && !resolvedCompanyId.trim().isEmpty()) {
+            final String targetCompanyId = resolvedCompanyId;
             java.util.Set<String> workersWithWageForCompany = wages.stream()
-                    .filter(rate -> companyId.equals(rate.getCompany()))
+                    .filter(rate -> targetCompanyId.equals(rate.getCompany()))
                     .map(BubbleWageRate::getUser)
                     .filter(java.util.Objects::nonNull)
                     .collect(java.util.stream.Collectors.toSet());
@@ -125,10 +146,10 @@ public class OrchestrationService {
                     .collect(Collectors.toList());
 
             wages = wages.stream()
-                    .filter(rate -> companyId.equals(rate.getCompany()))
+                    .filter(rate -> targetCompanyId.equals(rate.getCompany()))
                     .collect(Collectors.toList());
 
-            logs.add("Filtered worker pool to " + workers.size() + " workers who have valid wage rates for store/company: " + companyId);
+            logs.add("Filtered worker pool to " + workers.size() + " workers who have valid wage rates for store/company: " + resolvedCompanyId);
         }
 
         // Date range determination
@@ -176,7 +197,7 @@ public class OrchestrationService {
         }
 
         // Enrich shifts with company and type before validation
-        enrichShifts(proposedShifts, workers, wages, companyId);
+        enrichShifts(proposedShifts, workers, wages, resolvedCompanyId, resolvedStoreId);
 
         // 2. Run Deterministic Validation (Estonian labor laws & constraints)
         logs.add("Sending proposed shifts to Deterministic Validator Gatekeeper...");
@@ -506,7 +527,8 @@ public class OrchestrationService {
         return shifts;
     }
 
-    private void enrichShifts(List<BubbleShift> shifts, List<BubbleUser> workers, List<BubbleWageRate> wages, String companyId) {
+    private void enrichShifts(List<BubbleShift> shifts, List<BubbleUser> workers, List<BubbleWageRate> wages,
+                              String companyId, String storeId) {
         if (shifts == null || shifts.isEmpty()) {
             return;
         }
@@ -566,6 +588,11 @@ public class OrchestrationService {
                 if (company != null) {
                     shift.setAssignedCompany(company);
                 }
+            }
+
+            // 2. Set Store
+            if (storeId != null && !storeId.trim().isEmpty()) {
+                shift.setAssignedStore(storeId);
             }
 
             // 2. Set Type dynamically (Estonian law standard: 22:00 to 06:00 is Night shift)

@@ -37,6 +37,9 @@ public class BubbleShift {
     @JsonProperty("Status")
     private String status;
 
+    @JsonProperty("Assigned Store")
+    private String assignedStore;
+
     public BubbleShift(String id, String assignedUser, String startTime, String endTime, String notes) {
         this.id = id;
         this.assignedUser = assignedUser;
