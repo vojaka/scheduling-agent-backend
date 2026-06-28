@@ -81,4 +81,18 @@ class ScheduleControllerTest {
                 .andExpect(jsonPath("$.validationReport.valid").value(true))
                 .andExpect(jsonPath("$.orchestratorLogs[0]").value("Testing trace log"));
     }
+
+    @Test
+    void testGenerateWithGeminiUnavailableShouldReturn503() throws Exception {
+        Mockito.when(orchestrationService.generateSchedule(any(), any(), any(), any(), any(), any()))
+                .thenThrow(new com.example.scheduler.exception.GeminiUnavailableException("Gemini API is currently unavailable: 503 Service Unavailable"));
+
+        mockMvc.perform(post("/api/schedule/generate")
+                        .header("X-API-KEY", "test-api-key-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"prompt\": \"Schedule standard week\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("Service Unavailable"))
+                .andExpect(jsonPath("$.message").value("Gemini API is currently unavailable: 503 Service Unavailable"));
+    }
 }

@@ -5,9 +5,12 @@ import com.example.scheduler.dto.ScheduleGenerateRequest;
 import com.example.scheduler.dto.ScheduleGenerateResponse;
 import com.example.scheduler.model.BubbleShift;
 import com.example.scheduler.service.OrchestrationService;
+import com.example.scheduler.exception.GeminiUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -120,5 +123,13 @@ public class ScheduleController {
         result.put("createdIds", createdIds);
 
         return ResponseEntity.ok(result);
+    }
+
+    @ExceptionHandler(GeminiUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleGeminiUnavailable(GeminiUnavailableException ex) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("error", "Service Unavailable");
+        error.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
     }
 }

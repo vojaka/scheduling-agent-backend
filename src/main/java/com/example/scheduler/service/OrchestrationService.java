@@ -9,6 +9,7 @@ import com.example.scheduler.model.BubbleShift;
 import com.example.scheduler.model.BubbleStore;
 import com.example.scheduler.model.BubbleUser;
 import com.example.scheduler.model.BubbleWageRate;
+import com.example.scheduler.exception.GeminiUnavailableException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
@@ -53,6 +54,9 @@ public class OrchestrationService {
 
     @Value("${gemini.api.model}")
     private String geminiModel;
+
+    @Value("${gemini.api.fallback-model}")
+    private String geminiFallbackModel;
 
     public OrchestrationService(BubbleClient bubbleClient, 
                                 DeterministicValidator validator, 
@@ -327,7 +331,7 @@ public class OrchestrationService {
                     int weStart = storeAvailability.getWeekendStartHour() * 60 - bufBefore;
                     int weEnd   = storeAvailability.getWeekendEndHour()   * 60 + bufAfter;
                     hoursContext.append(String.format("- Weekend shift window: %02d:%02d to %02d:%02d",
-                            weStart / 60, weStart % 60, weEnd / 60, weEnd % 60)).append("\n");
+                             weStart / 60, weStart % 60, weEnd / 60, weEnd % 60)).append("\n");
                 }
                 if (bufBefore > 0) {
                     hoursContext.append("- Workers may start up to ").append(bufBefore)
@@ -404,43 +408,66 @@ public class OrchestrationService {
             requestBody.put("generationConfig", generationConfig);
 
             // Execute POST request to Gemini REST API
-            String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", 
-                    geminiModel, geminiApiKey);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-            logs.add("Calling Gemini API (" + geminiModel + ")...");
-            String responseStr = null;
-            int maxRetries = 3;
-            int delayMs = 1500;
-            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
                 try {
-                    responseStr = restTemplate.postForObject(url, entity, String.class);
-                    break;
-                } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
-                    logs.add("WARNING: Gemini API returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
-                    if (attempt == maxRetries) {
+                    return callGeminiWithModel(geminiModel, requestBody, logs);
+                } catch (Exception e) {
+                    if (geminiFallbackModel != null && !geminiFallbackModel.trim().isEmpty() && !geminiFallbackModel.equals(geminiModel)) {
+                        logs.add("WARNING: Primary model " + geminiModel + " failed: " + e.getMessage() + ". Attempting fallback model " + geminiFallbackModel + "...");
+                        log.warn("Primary model {} failed, switching to fallback {}", geminiModel, geminiFallbackModel, e);
+                        return callGeminiWithModel(geminiFallbackModel, requestBody, logs);
+                    } else {
                         throw e;
                     }
-                    try {
-                        Thread.sleep(delayMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw e;
-                    }
-                    delayMs *= 2; // Progressive delay: 1.5s, 3s...
                 }
+            } catch (Exception e) {
+                logs.add("ERROR: Real Gemini generation failed: " + e.getMessage());
+                log.error("Gemini API call error", e);
+                throw new GeminiUnavailableException("Gemini API is currently unavailable: " + e.getMessage(), e);
             }
-            
-            logs.add("Received response from Gemini.");
+        } catch (Exception e) {
+            throw new GeminiUnavailableException("Gemini API is currently unavailable: " + e.getMessage(), e);
+        }
+    }
 
-            // Parse Gemini Response
+    private List<BubbleShift> callGeminiWithModel(String model, Map<String, Object> requestBody, List<String> logs) {
+        String url = String.format("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", 
+                model, geminiApiKey);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        logs.add("Calling Gemini API (" + model + ")...");
+        String responseStr = null;
+        int maxRetries = 3;
+        int delayMs = 1500;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                responseStr = restTemplate.postForObject(url, entity, String.class);
+                break;
+            } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
+                logs.add("WARNING: Gemini API (" + model + ") returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
+                if (attempt == maxRetries) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+                delayMs *= 2; // Progressive delay: 1.5s, 3s...
+            }
+        }
+        
+        logs.add("Received response from Gemini.");
+
+        try {
             GeminiResponse geminiResponse = objectMapper.readValue(responseStr, GeminiResponse.class);
             if (geminiResponse != null && geminiResponse.getCandidates() != null && !geminiResponse.getCandidates().isEmpty()) {
                 String text = geminiResponse.getCandidates().get(0).getContent().getParts().get(0).getText();
-                logs.add("Raw LLM Output: " + text);
+                logs.add("Raw LLM Output (" + model + "): " + text);
 
                 GeminiOutput parsedJson = objectMapper.readValue(text, GeminiOutput.class);
                 if (parsedJson != null && parsedJson.getProposedShifts() != null) {
@@ -456,15 +483,10 @@ public class OrchestrationService {
                     return shifts;
                 }
             }
-
-            logs.add("ERROR: Empty or malformed candidates response from Gemini API.");
+            throw new RuntimeException("Empty or malformed candidates response from Gemini API.");
         } catch (Exception e) {
-            logs.add("ERROR: Real Gemini generation failed: " + e.getMessage());
-            log.error("Gemini API call error", e);
+            throw new RuntimeException("Failed to parse Gemini response for model " + model + ": " + e.getMessage(), e);
         }
-
-        logs.add("Falling back to simulation mode due to error...");
-        return runSimulatedLLM(userPrompt, workers, startLocalDate, logs);
     }
 
     private List<BubbleShift> runSimulatedLLM(String prompt, List<BubbleUser> workers, String startLocalDate, List<String> logs) {
