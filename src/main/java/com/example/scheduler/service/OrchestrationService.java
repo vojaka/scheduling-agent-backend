@@ -321,7 +321,7 @@ public class OrchestrationService {
                     int wdStart = storeAvailability.getWorkdayStartHour() * 60 - bufBefore;
                     int wdEnd   = storeAvailability.getWorkdayEndHour()   * 60 + bufAfter;
                     hoursContext.append(String.format("- Workday shift window: %02d:%02d to %02d:%02d",
-                            wdStart / 60, wdStart % 60, wdEnd / 60, wdEnd % 60)).append("\n");
+                             wdStart / 60, wdStart % 60, wdEnd / 60, wdEnd % 60)).append("\n");
                 }
                 if (storeAvailability.getWeekendStartHour() != null && storeAvailability.getWeekendEndHour() != null) {
                     int weStart = storeAvailability.getWeekendStartHour() * 60 - bufBefore;
@@ -412,7 +412,27 @@ public class OrchestrationService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             logs.add("Calling Gemini API (" + geminiModel + ")...");
-            String responseStr = restTemplate.postForObject(url, entity, String.class);
+            String responseStr = null;
+            int maxRetries = 3;
+            int delayMs = 1500;
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    responseStr = restTemplate.postForObject(url, entity, String.class);
+                    break;
+                } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
+                    logs.add("WARNING: Gemini API returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
+                    if (attempt == maxRetries) {
+                        throw e;
+                    }
+                    try {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                    delayMs *= 2; // Progressive delay: 1.5s, 3s...
+                }
+            }
             
             logs.add("Received response from Gemini.");
 

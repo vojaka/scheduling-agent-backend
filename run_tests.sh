@@ -20,4 +20,4 @@ fi
 
 # Run tests
 echo "Running Maven tests..."
-"$MAVEN_DIR/apache-maven-${MAVEN_VERSION}/bin/mvn" test -Dtest=DeterministicValidatorTest,ScheduleControllerTest
+"$MAVEN_DIR/apache-maven-${MAVEN_VERSION}/bin/mvn" test -Dtest=DeterministicValidatorTest,ScheduleControllerTest,EnrichShiftsTest
