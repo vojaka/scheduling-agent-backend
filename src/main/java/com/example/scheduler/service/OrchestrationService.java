@@ -289,13 +289,14 @@ public class OrchestrationService {
             for (BubbleUser w : workers) {
                 double fte = workerFteMap.getOrDefault(w.getId(), 1.0);
                 double contractedHours = Math.round(fte * statutoryHours * 10.0) / 10.0;
-                // Max shift hours per open day (capped at store window)
-                double avgHoursPerShift = 8.0; // sensible default
-                long recommendedShifts = Math.round(contractedHours / avgHoursPerShift);
                 contextBuilder.append(String.format(
-                        "- Name: %s (ID: %s) | FTE: %.2f | Contracted hours this period: %.1f h | Recommended shifts: ~%d\n",
-                        w.getName(), w.getId(), fte, contractedHours, recommendedShifts));
+                        "- Name: %s (ID: %s) | FTE: %.2f | Contracted hours target this period: %.1f h" +
+                        " (overtime above this is permitted by law — do NOT stop scheduling early)\n",
+                        w.getName(), w.getId(), fte, contractedHours));
             }
+            contextBuilder.append(String.format(
+                    "\nThere are %d store-open days in this period. Every worker must have a shift on EVERY open day.\n",
+                    storeOpenDaysInPeriod));
 
             contextBuilder.append(String.format(
                     "\nStore open days in this period: %d out of %d total days.\n",
@@ -346,20 +347,23 @@ public class OrchestrationService {
             }
 
             String systemPrompt = "You are an expert workforce scheduling agent. Today's date is " + todayStr + ". " +
-                    "Your job is to generate a complete shift schedule for " + schedulePeriodStr + ".\n" +
-                    "CRITICAL GOAL: Each worker must accumulate EXACTLY their contracted hours for this period. " +
-                    "Distribute their shifts evenly across the available store-open days, respecting all constraints below.\n" +
+                    "Your job is to generate a COMPLETE shift schedule for " + schedulePeriodStr + ".\n" +
+                    "CRITICAL COVERAGE RULE: You MUST generate a shift for EVERY worker on EVERY store-open day in the period " +
+                    "(" + startLocalDate + " to " + endLocalDate + "). " +
+                    "Do NOT stop early. Do NOT skip any day. The contracted hours figure is a soft target — " +
+                    "overtime beyond the contracted hours is fully permitted by Estonian law and is expected when the " +
+                    "schedule period has more open days than the contracted hours alone would fill.\n\n" +
                     "You must output a JSON object containing an array 'proposedShifts'. Each item in 'proposedShifts' must contain:\n" +
                     "- 'assignedUser': The exact name or ID of the assigned worker.\n" +
                     "- 'startTime': ISO-8601 UTC datetime string (between " + startLocalDate + "T00:00:00Z and " + endLocalDate + "T23:59:59Z).\n" +
                     "- 'endTime': ISO-8601 UTC datetime string (between " + startLocalDate + "T00:00:00Z and " + endLocalDate + "T23:59:59Z).\n" +
-                    "- 'notes': Brief comment about the shift (e.g. 'Standard shift', 'Pre-opening prep').\n\n" +
+                    "- 'notes': Brief comment about the shift (e.g. 'Standard shift', 'Overtime shift').\n\n" +
                     "Strict Compliance Rules (Estonia):\n" +
                     "1. No single shift may be longer than 12 hours.\n" +
                     "2. Each worker must have at least 11 hours of continuous rest between consecutive shifts.\n" +
-                    "3. Minimize night shifts (22:00–06:00) where possible.\n" +
+                    "3. Minimize night shifts (22:00\u201306:00) where possible.\n" +
                     "4. Shifts ONLY on days the store is open (see store context below).\n" +
-                    "5. Total hours scheduled per worker MUST closely match their contracted hours for the period.\n" +
+                    "5. Aim to match contracted hours; any excess is overtime and is allowed.\n" +
                     (hoursContext.length() > 0 ? "\nStore Scheduling Constraints:\n" + hoursContext + "\n" : "") +
                     "\nUser Custom Guidelines:\n" +
                     userPrompt;
@@ -446,7 +450,12 @@ public class OrchestrationService {
             try {
                 responseStr = restTemplate.postForObject(url, entity, String.class);
                 break;
+            } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+                // 429: Quota exhausted for this model — no point retrying, escalate immediately to fallback
+                logs.add("WARNING: Gemini API (" + model + ") returned 429 Too Many Requests (quota exhausted). Skipping retries for this model.");
+                throw e;
             } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
+                // 503: Transient overload — retry with exponential backoff
                 logs.add("WARNING: Gemini API (" + model + ") returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
                 if (attempt == maxRetries) {
                     throw e;
