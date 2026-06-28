@@ -58,7 +58,6 @@ public class ScheduleController {
                         bs.setAssignedCompany(shiftDto.getAssignedCompany());
                         bs.setType(shiftDto.getType());
                         bs.setAssignedStore(shiftDto.getAssignedStore());
-                        bs.setSlug(shiftDto.getSlug());
 
                         BubbleShift created = bubbleClient.createShift(bs);
                         if (created != null && created.getId() != null) {

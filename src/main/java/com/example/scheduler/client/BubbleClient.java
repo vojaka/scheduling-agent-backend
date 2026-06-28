@@ -138,7 +138,6 @@ public class BubbleClient {
             payload.setType(shift.getType());
             payload.setStatus(shift.getStatus());
             payload.setAssignedStore(shift.getAssignedStore());
-            payload.setSlug(shift.getSlug());
 
             BubbleCreationResponse response = addAuthHeader(
                     restClient.post()
@@ -185,9 +184,6 @@ public class BubbleClient {
 
         @JsonProperty("assigned_store_custom_store")
         private String assignedStore;
-
-        @JsonProperty("Slug")
-        private String slug;
     }
 
     @Data
