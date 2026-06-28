@@ -308,13 +308,20 @@ public class OrchestrationService {
                         r.getUser(), r.getRate() != null ? r.getRate() : 1.0));
             }
 
+            // Compute UTC offset for the schedule period (Estonia: +3 in summer / +2 in winter)
+            // Store hours in Bubble are stored as local EET integers; the model generates UTC timestamps,
+            // so we must subtract the offset before injecting hours into the prompt.
+            int utcOffsetMinutes = estoniaZone.getRules()
+                    .getOffset(periodStart.atStartOfDay().toInstant(java.time.ZoneOffset.UTC))
+                    .getTotalSeconds() / 60; // +180 in summer (EEST), +120 in winter (EET)
+
             // Inject store opening hours + buffer context if available
             StringBuilder hoursContext = new StringBuilder();
             if (storeAvailability != null) {
                 int bufBefore = bufferBeforeMinutes != null ? bufferBeforeMinutes : 0;
                 int bufAfter  = bufferAfterMinutes  != null ? bufferAfterMinutes  : 0;
 
-                hoursContext.append("\nStore Opening Hours:\n");
+                hoursContext.append("\nStore Opening Hours (all times are UTC — the model must output UTC ISO-8601 timestamps):\n");
                 List<String> openDays = storeAvailability.getAvailableDays();
                 if (openDays != null && !openDays.isEmpty()) {
                     hoursContext.append("- Open days: ").append(String.join(", ", openDays)).append("\n");
@@ -322,17 +329,21 @@ public class OrchestrationService {
                     hoursContext.append("- Open days: all days\n");
                 }
                 if (storeAvailability.getWorkdayStartHour() != null && storeAvailability.getWorkdayEndHour() != null) {
-                    // Effective shift window = opening - bufBefore to closing + bufAfter
-                    int wdStart = storeAvailability.getWorkdayStartHour() * 60 - bufBefore;
-                    int wdEnd   = storeAvailability.getWorkdayEndHour()   * 60 + bufAfter;
-                    hoursContext.append(String.format("- Workday shift window: %02d:%02d to %02d:%02d",
-                             wdStart / 60, wdStart % 60, wdEnd / 60, wdEnd % 60)).append("\n");
+                    // Convert local hours to UTC minutes, then apply buffer
+                    int wdStartUtcMin = storeAvailability.getWorkdayStartHour() * 60 - utcOffsetMinutes - bufBefore;
+                    int wdEndUtcMin   = storeAvailability.getWorkdayEndHour()   * 60 - utcOffsetMinutes + bufAfter;
+                    hoursContext.append(String.format(
+                            "- Workday shift window (UTC): %02d:%02d to %02d:%02d%n",
+                            wdStartUtcMin / 60, wdStartUtcMin % 60,
+                            wdEndUtcMin   / 60, wdEndUtcMin   % 60));
                 }
                 if (storeAvailability.getWeekendStartHour() != null && storeAvailability.getWeekendEndHour() != null) {
-                    int weStart = storeAvailability.getWeekendStartHour() * 60 - bufBefore;
-                    int weEnd   = storeAvailability.getWeekendEndHour()   * 60 + bufAfter;
-                    hoursContext.append(String.format("- Weekend shift window: %02d:%02d to %02d:%02d",
-                             weStart / 60, weStart % 60, weEnd / 60, weEnd % 60)).append("\n");
+                    int weStartUtcMin = storeAvailability.getWeekendStartHour() * 60 - utcOffsetMinutes - bufBefore;
+                    int weEndUtcMin   = storeAvailability.getWeekendEndHour()   * 60 - utcOffsetMinutes + bufAfter;
+                    hoursContext.append(String.format(
+                            "- Weekend shift window (UTC): %02d:%02d to %02d:%02d%n",
+                            weStartUtcMin / 60, weStartUtcMin % 60,
+                            weEndUtcMin   / 60, weEndUtcMin   % 60));
                 }
                 if (bufBefore > 0) {
                     hoursContext.append("- Workers may start up to ").append(bufBefore)
@@ -342,8 +353,8 @@ public class OrchestrationService {
                     hoursContext.append("- Workers may stay up to ").append(bufAfter)
                             .append(" minutes AFTER store closing for cleanup/handover.\n");
                 }
-                hoursContext.append("IMPORTANT: Shifts MUST start at or after the workday/weekend shift window start, "
-                        + "and MUST end at or before the workday/weekend shift window end.\n");
+                hoursContext.append("IMPORTANT: All startTime and endTime values MUST be UTC. "
+                        + "Shifts MUST start at or after the UTC window start and end at or before the UTC window end.\n");
             }
 
             String systemPrompt = "You are an expert workforce scheduling agent. Today's date is " + todayStr + ". " +
@@ -361,14 +372,16 @@ public class OrchestrationService {
                     "Strict Compliance Rules (Estonia):\n" +
                     "1. No single shift may be longer than 12 hours.\n" +
                     "2. Each worker must have at least 11 hours of continuous rest between consecutive shifts.\n" +
-                    "3. Minimize night shifts (22:00\u201306:00) where possible.\n" +
+                    "3. Minimize night shifts (22:00–06:00) where possible.\n" +
                     "4. Shifts ONLY on days the store is open (see store context below).\n" +
                     "5. Aim to match contracted hours; any excess is overtime and is allowed.\n" +
                     (hoursContext.length() > 0 ? "\nStore Scheduling Constraints:\n" + hoursContext + "\n" : "") +
                     "\nUser Custom Guidelines:\n" +
                     userPrompt;
 
-            logs.add("Assembled prompt context with " + workers.size() + " workers.");
+            logs.add(String.format(
+                    "Assembled prompt context with %d workers. UTC offset applied: +%d min (EET/EEST). Store hours converted to UTC for model.",
+                    workers.size(), utcOffsetMinutes));
             
             // Build HTTP Request payload
             Map<String, Object> requestBody = new HashMap<>();
@@ -450,12 +463,7 @@ public class OrchestrationService {
             try {
                 responseStr = restTemplate.postForObject(url, entity, String.class);
                 break;
-            } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
-                // 429: Quota exhausted for this model — no point retrying, escalate immediately to fallback
-                logs.add("WARNING: Gemini API (" + model + ") returned 429 Too Many Requests (quota exhausted). Skipping retries for this model.");
-                throw e;
             } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
-                // 503: Transient overload — retry with exponential backoff
                 logs.add("WARNING: Gemini API (" + model + ") returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
                 if (attempt == maxRetries) {
                     throw e;
