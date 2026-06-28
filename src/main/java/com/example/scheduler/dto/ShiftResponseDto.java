@@ -35,6 +35,9 @@ public class ShiftResponseDto {
     @JsonProperty("Type")
     private String type;
 
+    @JsonProperty("Status")
+    private String status;
+
     public ShiftResponseDto(BubbleShift shift) {
         this.id = shift.getId();
         this.assignedUser = shift.getAssignedUser();
@@ -43,6 +46,7 @@ public class ShiftResponseDto {
         this.notes = shift.getNotes();
         this.assignedCompany = shift.getAssignedCompany();
         this.type = shift.getType();
+        this.status = shift.getStatus();
         
         calculateDynamicFields();
     }

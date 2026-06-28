@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -70,7 +71,7 @@ class ScheduleControllerTest {
                 Collections.singletonList("Testing trace log")
         );
 
-        Mockito.when(orchestrationService.generateSchedule(anyString())).thenReturn(mockResponse);
+        Mockito.when(orchestrationService.generateSchedule(any(), any(), any(), any(), any(), any())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/api/schedule/generate")
                         .header("X-API-KEY", "test-api-key-123")

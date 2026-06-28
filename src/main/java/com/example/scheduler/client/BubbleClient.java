@@ -1,6 +1,8 @@
 package com.example.scheduler.client;
 
+import com.example.scheduler.model.BubbleAvailability;
 import com.example.scheduler.model.BubbleShift;
+import com.example.scheduler.model.BubbleStore;
 import com.example.scheduler.model.BubbleUser;
 import com.example.scheduler.model.BubbleWageRate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -82,6 +84,46 @@ public class BubbleClient {
         return Collections.emptyList();
     }
 
+    public List<BubbleStore> fetchStores() {
+        try {
+            log.info("Fetching stores from Bubble Data API...");
+            BubbleResponseWrapper<BubbleStore> response = addAuthHeader(
+                    restClient.get()
+                            .uri("/store")
+                            .accept(MediaType.APPLICATION_JSON)
+            )
+            .retrieve()
+            .body(new ParameterizedTypeReference<BubbleResponseWrapper<BubbleStore>>() {});
+
+            if (response != null && response.getResponse() != null && response.getResponse().getResults() != null) {
+                return response.getResponse().getResults();
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch stores from Bubble: {}", e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+    public List<BubbleAvailability> fetchAvailability() {
+        try {
+            log.info("Fetching availability records from Bubble Data API...");
+            BubbleResponseWrapper<BubbleAvailability> response = addAuthHeader(
+                    restClient.get()
+                            .uri("/availability")
+                            .accept(MediaType.APPLICATION_JSON)
+            )
+            .retrieve()
+            .body(new ParameterizedTypeReference<BubbleResponseWrapper<BubbleAvailability>>() {});
+
+            if (response != null && response.getResponse() != null && response.getResponse().getResults() != null) {
+                return response.getResponse().getResults();
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch availability from Bubble: {}", e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
     public BubbleShift createShift(BubbleShift shift) {
         try {
             log.info("Creating shift in Bubble for user: {} ({} - {})", 
@@ -94,6 +136,7 @@ public class BubbleClient {
             payload.setNotes(shift.getNotes());
             payload.setStartTime(shift.getStartTime());
             payload.setType(shift.getType());
+            payload.setStatus(shift.getStatus());
 
             BubbleCreationResponse response = addAuthHeader(
                     restClient.post()
@@ -134,6 +177,9 @@ public class BubbleClient {
 
         @JsonProperty("type_option_shift_type")
         private String type;
+
+        @JsonProperty("status_option_shift_approval_status")
+        private String status;
     }
 
     @Data

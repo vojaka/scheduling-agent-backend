@@ -38,7 +38,9 @@ public class ScheduleController {
                 request.getPrompt(), request.getCommit());
         
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
-        ScheduleGenerateResponse response = orchestrationService.generateSchedule(prompt);
+        ScheduleGenerateResponse response = orchestrationService.generateSchedule(
+                prompt, request.getMonth(), request.getCompany(), request.getWorkers(),
+                request.getBufferBeforeMinutes(), request.getBufferAfterMinutes());
 
         if (Boolean.TRUE.equals(request.getCommit())) {
             if (response.getValidationReport() != null && response.getValidationReport().isValid() && response.getProposedShifts() != null) {
