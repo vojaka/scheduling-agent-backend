@@ -573,10 +573,18 @@ public class OrchestrationService {
 
             // Resolve assigned user to Bubble Unique ID
             if (user != null) {
-                String userId = nameToId.get(user);
-                if (userId != null) {
-                    shift.setAssignedUser(userId);
-                    user = userId;
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\d+x\\d+");
+                java.util.regex.Matcher matcher = pattern.matcher(user);
+                if (matcher.find()) {
+                    String extractedId = matcher.group();
+                    shift.setAssignedUser(extractedId);
+                    user = extractedId;
+                } else {
+                    String userId = nameToId.get(user);
+                    if (userId != null) {
+                        shift.setAssignedUser(userId);
+                        user = userId;
+                    }
                 }
             }
             
