@@ -40,6 +40,9 @@ public class BubbleShift {
     @JsonProperty("Assigned Store")
     private String assignedStore;
 
+    @JsonProperty("Slug")
+    private String slug;
+
     public BubbleShift(String id, String assignedUser, String startTime, String endTime, String notes) {
         this.id = id;
         this.assignedUser = assignedUser;

@@ -538,10 +538,12 @@ public class OrchestrationService {
         
         // Build map workerName -> workerId
         Map<String, String> nameToId = new HashMap<>();
+        Map<String, String> idToName = new HashMap<>();
         for (BubbleUser w : workers) {
             if (w.getName() != null && w.getId() != null) {
                 nameToId.put(w.getName(), w.getId());
                 nameToId.put(w.getId(), w.getId()); // Map ID to ID to support direct ID usage
+                idToName.put(w.getId(), w.getName());
             }
         }
 
@@ -593,6 +595,16 @@ public class OrchestrationService {
             // 2. Set Store
             if (storeId != null && !storeId.trim().isEmpty()) {
                 shift.setAssignedStore(storeId);
+            }
+
+            // 3. Set Slug (FullName of the worker)
+            if (user != null) {
+                String fullName = idToName.get(user);
+                if (fullName != null) {
+                    shift.setSlug(fullName);
+                } else {
+                    shift.setSlug(user);
+                }
             }
 
             // 2. Set Type dynamically (Estonian law standard: 22:00 to 06:00 is Night shift)

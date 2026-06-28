@@ -41,6 +41,9 @@ public class ShiftResponseDto {
     @JsonProperty("Assigned Store")
     private String assignedStore;
 
+    @JsonProperty("Slug")
+    private String slug;
+
     public ShiftResponseDto(BubbleShift shift) {
         this.id = shift.getId();
         this.assignedUser = shift.getAssignedUser();
@@ -51,6 +54,7 @@ public class ShiftResponseDto {
         this.type = shift.getType();
         this.status = shift.getStatus();
         this.assignedStore = shift.getAssignedStore();
+        this.slug = shift.getSlug();
         
         calculateDynamicFields();
     }
