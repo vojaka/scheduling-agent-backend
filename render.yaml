@@ -24,7 +24,7 @@ services:
     env: image
     image:
       url: docker.io/metabase/metabase:latest
-    plan: starter
+    plan: free
     envVars:
       - key: MB_DB_TYPE
         value: postgres
