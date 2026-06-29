@@ -47,21 +47,34 @@ def main():
         r.raise_for_status()
         databases = r.json().get("data", [])
         
-        # Look for the PostgreSQL database representing Supabase
+        # Look for the PostgreSQL database representing Supabase or Local DB
         for db in databases:
             if db.get("engine") == "postgres":
                 db_id = db["id"]
                 print(f"Found database '{db['name']}' with ID: {db_id}")
                 break
 
-        
         if not db_id:
-            print("ERROR: Could not find any PostgreSQL database connected in Metabase.")
-            print("Please make sure you have added your Supabase database in the Metabase UI first.")
-            sys.exit(1)
+            print("PostgreSQL database not found. Connecting to local PostgreSQL container automatically...")
+            db_payload = {
+                "name": "bubble",
+                "engine": "postgres",
+                "details": {
+                    "host": "db",
+                    "port": 5432,
+                    "dbname": "postgres",
+                    "user": "postgres",
+                    "password": "comfort-hub-db-pass-2026",
+                    "ssl": False
+                }
+            }
+            r = requests.post(f"{metabase_url}/api/database", headers=headers, json=db_payload, timeout=15)
+            r.raise_for_status()
+            db_id = r.json()["id"]
+            print(f"Successfully connected to PostgreSQL container with ID: {db_id}")
             
     except Exception as e:
-        print(f"FAILED to fetch databases: {e}")
+        print(f"FAILED to fetch/connect database: {e}")
         sys.exit(1)
 
     # 3. Create the Questions (Cards)
