@@ -124,6 +124,27 @@ public class BubbleClient {
         return Collections.emptyList();
     }
 
+    public List<BubbleShift> fetchShifts() {
+        try {
+            log.info("Fetching shifts from Bubble Data API...");
+            BubbleResponseWrapper<BubbleShift> response = addAuthHeader(
+                    restClient.get()
+                            .uri("/shift")
+                            .accept(MediaType.APPLICATION_JSON)
+            )
+            .retrieve()
+            .body(new ParameterizedTypeReference<BubbleResponseWrapper<BubbleShift>>() {});
+
+            if (response != null && response.getResponse() != null && response.getResponse().getResults() != null) {
+                return response.getResponse().getResults();
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch shifts from Bubble: {}", e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+
     public BubbleShift createShift(BubbleShift shift) {
         try {
             log.info("Creating shift in Bubble for user: {} ({} - {})", 

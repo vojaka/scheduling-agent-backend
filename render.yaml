@@ -14,6 +14,10 @@ services:
         value: https://comforthub.ee/version-test/api/1.1/obj
       - key: GEMINI_MODEL
         value: gemini-3.1-flash-lite
+      - key: SUPABASE_API_URL
+        value: https://dejtvwewomgitszmvsba.supabase.co
+      - key: SUPABASE_API_KEY
+        sync: false
 
   - type: web
     name: metabase-analytics
@@ -34,18 +38,3 @@ services:
         value: wyfkes-jEcwoj-feqze8
       - key: MB_DB_HOST
         value: aws-1-eu-west-2.pooler.supabase.com
-
-  - type: cron
-    name: bubble-supabase-sync
-    env: python
-    plan: free
-    schedule: "0 * * * *"
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python sync.py"
-    envVars:
-      - key: BUBBLE_API_TOKEN
-        sync: false
-      - key: BUBBLE_API_BASE_URL
-        value: https://comforthub.ee/version-test/api/1.1/obj
-      - key: SUPABASE_DB_URL
-        value: postgresql://postgres.dejtvwewomgitszmvsba:wyfkes-jEcwoj-feqze8@aws-1-eu-west-2.pooler.supabase.com:6543/postgres

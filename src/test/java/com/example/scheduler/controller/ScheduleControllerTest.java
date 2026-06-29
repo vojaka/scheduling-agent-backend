@@ -41,6 +41,9 @@ class ScheduleControllerTest {
     @MockBean
     private BubbleClient bubbleClient;
 
+    @MockBean
+    private com.example.scheduler.service.SupabaseSyncService supabaseSyncService;
+
     @Autowired
     private ObjectMapper objectMapper;
 

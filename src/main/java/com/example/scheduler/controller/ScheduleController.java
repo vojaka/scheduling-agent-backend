@@ -29,11 +29,26 @@ public class ScheduleController {
 
     private final OrchestrationService orchestrationService;
     private final BubbleClient bubbleClient;
+    private final com.example.scheduler.service.SupabaseSyncService supabaseSyncService;
 
-    public ScheduleController(OrchestrationService orchestrationService, BubbleClient bubbleClient) {
+    public ScheduleController(OrchestrationService orchestrationService, 
+                              BubbleClient bubbleClient, 
+                              com.example.scheduler.service.SupabaseSyncService supabaseSyncService) {
         this.orchestrationService = orchestrationService;
         this.bubbleClient = bubbleClient;
+        this.supabaseSyncService = supabaseSyncService;
     }
+
+    @PostMapping("/sync")
+    public ResponseEntity<Map<String, Object>> sync() {
+        log.info("API request received for manual database sync to Supabase.");
+        String result = supabaseSyncService.syncNow();
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", result.contains("failed") ? "error" : "success");
+        response.put("message", result);
+        return ResponseEntity.ok(response);
+    }
+
 
     @PostMapping("/generate")
     public ResponseEntity<ScheduleGenerateResponse> generate(@RequestBody ScheduleGenerateRequest request) {
