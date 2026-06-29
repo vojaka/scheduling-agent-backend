@@ -12,7 +12,7 @@ DATABASE_URL = os.environ.get("SUPABASE_DB_URL")
 
 if not DATABASE_URL:
     print("ERROR: SUPABASE_DB_URL environment variable is required.")
-    print("Format: postgresql://postgres.[YOUR-REF]:[PASS]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres")
+    print("Format: postgresql://postgres.[YOUR-REF]:[PASS]@aws-1-[REGION].pooler.supabase.com:6543/postgres")
     sys.exit(1)
 
 def get_bubble_data(endpoint):
