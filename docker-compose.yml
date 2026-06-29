@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: scheduling-db
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: comfort-hub-db-pass-2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: scheduling-postgrest
+    restart: always
+    ports:
+      - "3001:3000"  # Exposed internally/externally for debugging if needed, but not required
+    environment:
+      PGRST_DB_URI: postgres://postgres:comfort-hub-db-pass-2026@db:5432/postgres
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build: .
+    container_name: scheduling-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - APP_API_KEY=my-comfort-hub-scheduling-key-2026
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=gemini-3.1-flash-lite
+      - BUBBLE_API_BASE_URL=https://comforthub.ee/version-test/api/1.1/obj
+      - BUBBLE_API_TOKEN=855ecbda56a81baf6e2e58d41b42cae0
+      - SUPABASE_API_URL=http://postgrest:3000
+      - SUPABASE_API_KEY=local-vps-anon-token-secret
+    depends_on:
+      - postgrest
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: scheduling-metabase
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=postgres
+      - MB_DB_PORT=5432
+      - MB_DB_USER=postgres
+      - MB_DB_PASS=comfort-hub-db-pass-2026
+      - MB_DB_HOST=db
+      - JAVA_OPTS=-Xmx1500m -Xms500m  # High memory allocation since we have 4GB RAM on VPS
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
