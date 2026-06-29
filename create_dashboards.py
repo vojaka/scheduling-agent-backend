@@ -2,15 +2,19 @@ import requests
 import sys
 import getpass
 
-METABASE_URL = "http://localhost:3000"
-
 def main():
     print("====================================================")
     print("       ComfortHub Metabase Dashboard Creator        ")
     print("====================================================")
-    print("This script connects to your local Metabase and")
+    print("This script connects to your Metabase server and")
     print("creates your Workforce Analytics dashboard automatically.")
     print("----------------------------------------------------\n")
+
+    metabase_url = input("Metabase URL [http://localhost:3000]: ").strip()
+    if not metabase_url:
+        metabase_url = "http://localhost:3000"
+    if metabase_url.endswith("/"):
+        metabase_url = metabase_url[:-1]
 
     email = input("Metabase Admin Email: ")
     password = getpass.getpass("Metabase Password: ")
@@ -18,7 +22,7 @@ def main():
     # 1. Log in to get session token
     print("\nLogging in to Metabase...")
     try:
-        r = requests.post(f"{METABASE_URL}/api/session", json={
+        r = requests.post(f"{metabase_url}/api/session", json={
             "username": email,
             "password": password
         }, timeout=5)
@@ -39,7 +43,7 @@ def main():
     print("Fetching connected databases...")
     db_id = None
     try:
-        r = requests.get(f"{METABASE_URL}/api/database", headers=headers, timeout=5)
+        r = requests.get(f"{metabase_url}/api/database", headers=headers, timeout=5)
         r.raise_for_status()
         databases = r.json().get("data", [])
         
@@ -128,7 +132,7 @@ ORDER BY est_cost_eur DESC;"""
     card_ids = []
     for q in questions:
         try:
-            r = requests.post(f"{METABASE_URL}/api/card", headers=headers, json=q, timeout=5)
+            r = requests.post(f"{metabase_url}/api/card", headers=headers, json=q, timeout=5)
             r.raise_for_status()
             card = r.json()
             card_ids.append(card["id"])
@@ -141,7 +145,7 @@ ORDER BY est_cost_eur DESC;"""
     print("\nCreating dashboard...")
     dash_id = None
     try:
-        r = requests.post(f"{METABASE_URL}/api/dashboard", headers=headers, json={
+        r = requests.post(f"{metabase_url}/api/dashboard", headers=headers, json={
             "name": "Workforce Scheduling Analytics",
             "description": "Overview of scheduled hours, shift counts, and estimated payroll costs."
         }, timeout=5)
@@ -175,7 +179,7 @@ ORDER BY est_cost_eur DESC;"""
         })
 
     try:
-        r = requests.put(f"{METABASE_URL}/api/dashboard/{dash_id}/cards", headers=headers, json={
+        r = requests.put(f"{metabase_url}/api/dashboard/{dash_id}/cards", headers=headers, json={
             "cards": cards_payload
         }, timeout=5)
         r.raise_for_status()
@@ -186,7 +190,7 @@ ORDER BY est_cost_eur DESC;"""
 
     print("\n====================================================")
     print("SUCCESS: Your Workforce Scheduling Dashboard is ready!")
-    print(f"Open: {METABASE_URL}/dashboard/{dash_id}")
+    print(f"Open: {metabase_url}/dashboard/{dash_id}")
     print("====================================================")
 
 
