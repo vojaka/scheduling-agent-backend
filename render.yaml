@@ -13,4 +13,24 @@ services:
       - key: BUBBLE_API_BASE_URL
         value: https://comforthub.ee/version-test/api/1.1/obj
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.1-flash-lite
+
+  - type: web
+    name: metabase-analytics
+    env: image
+    image:
+      url: docker.io/metabase/metabase:latest
+    plan: starter
+    envVars:
+      - key: MB_DB_TYPE
+        value: postgres
+      - key: MB_DB_DBNAME
+        value: postgres
+      - key: MB_DB_PORT
+        value: "6543"
+      - key: MB_DB_USER
+        value: postgres.dejtvwewomgitszmvsba
+      - key: MB_DB_PASS
+        value: wyfkes-jEcwoj-feqze8
+      - key: MB_DB_HOST
+        value: aws-1-eu-west-2.pooler.supabase.com
