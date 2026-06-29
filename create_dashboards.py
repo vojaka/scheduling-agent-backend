@@ -88,11 +88,11 @@ def main():
                 "type": "native",
                 "native": {
                     "query": """SELECT 
-    u.name AS worker_name,
-    ROUND(SUM(EXTRACT(EPOCH FROM (s.end_time - s.start_time))/3600)::numeric, 2) AS total_hours
-FROM bubble_shifts s
-JOIN bubble_users u ON s.assigned_user = u.id
-GROUP BY u.name
+    u.fullname AS worker_name,
+    ROUND(SUM(EXTRACT(EPOCH FROM (s.time_end_time - s.time_start_time))/3600)::numeric, 2) AS total_hours
+FROM bubble_shift s
+JOIN bubble_user u ON s.assigned_user = u.id
+GROUP BY u.fullname
 ORDER BY total_hours DESC;"""
                 }
             },
@@ -108,11 +108,11 @@ ORDER BY total_hours DESC;"""
                 "type": "native",
                 "native": {
                     "query": """SELECT 
-    COALESCE(st.name, s.assigned_store, 'Unassigned') AS store_name,
+    COALESCE(st.store_name, s.assigned_store, 'Unassigned') AS store_name,
     COUNT(s.id) AS total_shifts
-FROM bubble_shifts s
-LEFT JOIN bubble_stores st ON s.assigned_store = st.id
-GROUP BY COALESCE(st.name, s.assigned_store, 'Unassigned')
+FROM bubble_shift s
+LEFT JOIN bubble_store st ON s.assigned_store = st.id
+GROUP BY COALESCE(st.store_name, s.assigned_store, 'Unassigned')
 ORDER BY total_shifts DESC;"""
                 }
             },
@@ -126,14 +126,14 @@ ORDER BY total_shifts DESC;"""
                 "type": "native",
                 "native": {
                     "query": """SELECT 
-    u.name AS worker_name,
+    u.fullname AS worker_name,
     COUNT(s.id) AS total_shifts,
-    ROUND(SUM(EXTRACT(EPOCH FROM (s.end_time - s.start_time))/3600)::numeric, 2) AS total_hours,
-    ROUND(SUM((EXTRACT(EPOCH FROM (s.end_time - s.start_time))/3600) * w.rate)::numeric, 2) AS est_cost_eur
-FROM bubble_shifts s
-JOIN bubble_users u ON s.assigned_user = u.id
-JOIN bubble_wage_rates w ON u.id = w.user_id
-GROUP BY u.name
+    ROUND(SUM(EXTRACT(EPOCH FROM (s.time_end_time - s.time_start_time))/3600)::numeric, 2) AS total_hours,
+    ROUND(SUM((EXTRACT(EPOCH FROM (s.time_end_time - s.time_start_time))/3600) * w.rate)::numeric, 2) AS est_cost_eur
+FROM bubble_shift s
+JOIN bubble_user u ON s.assigned_user = u.id
+JOIN bubble_wagerate w ON u.id = w.user
+GROUP BY u.fullname
 ORDER BY est_cost_eur DESC;"""
                 }
             },
