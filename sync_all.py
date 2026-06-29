@@ -125,7 +125,7 @@ def main():
         db_table_name = f"bubble_{table}"
 
         # Create Table SQL
-        col_definitions = [f"{db_col} {db_type}" for raw_col, (db_col, db_type) in columns.items()]
+        col_definitions = [f'"{db_col}" {db_type}' for raw_col, (db_col, db_type) in columns.items()]
         # Set primary key constraint on "id"
         col_definitions_str = ", ".join(col_definitions)
         create_sql = f"CREATE TABLE IF NOT EXISTS {db_table_name} ({col_definitions_str}, CONSTRAINT pk_{db_table_name} PRIMARY KEY (id));"
@@ -145,7 +145,7 @@ def main():
                     col_exists = cur.fetchone()[0]
                     if not col_exists:
                         print(f"    Adding missing column: {db_col} {db_type}")
-                        cur.execute(f"ALTER TABLE {db_table_name} ADD COLUMN {db_col} {db_type}")
+                        cur.execute(f'ALTER TABLE {db_table_name} ADD COLUMN "{db_col}" {db_type}')
 
         # Fetch Data
         data = get_bubble_data(table)
@@ -155,11 +155,12 @@ def main():
 
         # Prepare Batch Upsert SQL
         col_names = [db_col for raw_col, (db_col, db_type) in columns.items()]
-        col_names_str = ", ".join(col_names)
+        col_names_escaped = [f'"{db_col}"' for db_col in col_names]
+        col_names_str = ", ".join(col_names_escaped)
         val_placeholders = ", ".join(["%s"] * len(col_names))
         
         # Conflict statement: ON CONFLICT (id) DO UPDATE SET ...
-        update_statements = [f"{db_col} = EXCLUDED.{db_col}" for db_col in col_names if db_col != "id"]
+        update_statements = [f'"{db_col}" = EXCLUDED."{db_col}"' for db_col in col_names if db_col != "id"]
         update_statements_str = ", ".join(update_statements)
         
         upsert_sql = f"""
