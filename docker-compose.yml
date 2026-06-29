@@ -48,6 +48,8 @@ services:
       - BUBBLE_API_TOKEN=855ecbda56a81baf6e2e58d41b42cae0
       - SUPABASE_API_URL=http://postgrest:3000
       - SUPABASE_API_KEY=eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24ifQ.0JmpGhtOnZS97SBim31KtryNvQV4AQTgMjtHeOSATBc
+      - METABASE_SITE_URL=http://178.105.76.235:3000
+      - METABASE_EMBED_SECRET=fb836ffc841c2c31e21b714d3a0491950e181057476e4c70be6a32a67e415ef4
     depends_on:
       - postgrest
 
