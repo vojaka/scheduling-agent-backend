@@ -28,6 +28,7 @@ services:
       PGRST_DB_URI: postgres://postgres:comfort-hub-db-pass-2026@db:5432/postgres
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: comfort-hub-jwt-secret-key-2026-comfort-hub
     depends_on:
       db:
         condition: service_healthy
@@ -46,7 +47,7 @@ services:
       - BUBBLE_API_BASE_URL=https://comforthub.ee/version-test/api/1.1/obj
       - BUBBLE_API_TOKEN=855ecbda56a81baf6e2e58d41b42cae0
       - SUPABASE_API_URL=http://postgrest:3000
-      - SUPABASE_API_KEY=local-vps-anon-token-secret
+      - SUPABASE_API_KEY=eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24ifQ.0JmpGhtOnZS97SBim31KtryNvQV4AQTgMjtHeOSATBc
     depends_on:
       - postgrest
 
