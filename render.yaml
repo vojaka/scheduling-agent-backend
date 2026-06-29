@@ -16,7 +16,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.1-flash-lite
       - key: SUPABASE_API_URL
-        value: https://dejtvwewomgitszmvsba.supabase.co
+        value: https://dejtvwewomgitszmvsba.supabase.co/rest/v1
       - key: SUPABASE_API_KEY
         sync: false
 

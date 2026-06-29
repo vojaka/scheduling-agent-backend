@@ -163,7 +163,7 @@ public class SupabaseSyncService {
             return;
         }
 
-        String url = String.format("%s/rest/v1/%s", supabaseUrl, tableName);
+        String url = String.format("%s/%s", supabaseUrl, tableName);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
