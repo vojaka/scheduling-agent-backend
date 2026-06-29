@@ -40,3 +40,5 @@ services:
         sync: false
       - key: MB_DB_HOST
         value: aws-1-eu-west-2.pooler.supabase.com
+      - key: JAVA_OPTS
+        value: "-Xmx350m -Xms200m"
