@@ -8,12 +8,15 @@ import com.example.scheduler.service.OrchestrationService;
 import com.example.scheduler.exception.GeminiUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -31,12 +34,71 @@ public class ScheduleController {
     private final BubbleClient bubbleClient;
     private final com.example.scheduler.service.SupabaseSyncService supabaseSyncService;
 
+    @Value("${metabase.site.url:http://178.105.76.235:3000}")
+    private String metabaseSiteUrl;
+
+    @Value("${metabase.embed.secret:}")
+    private String metabaseEmbedSecret;
+
     public ScheduleController(OrchestrationService orchestrationService, 
                               BubbleClient bubbleClient, 
                               com.example.scheduler.service.SupabaseSyncService supabaseSyncService) {
         this.orchestrationService = orchestrationService;
         this.bubbleClient = bubbleClient;
         this.supabaseSyncService = supabaseSyncService;
+    }
+
+    @GetMapping("/dashboard-url")
+    public ResponseEntity<Map<String, Object>> getDashboardUrl(
+            @RequestParam(name = "dashboardId") int dashboardId,
+            @RequestParam(name = "company", required = false) String company,
+            @RequestParam(name = "store", required = false) String store) {
+        log.info("API request received to generate Metabase secure embed URL for dashboard ID: {}, company filter: {}, store filter: {}", 
+                dashboardId, company, store);
+        
+        if (metabaseEmbedSecret == null || metabaseEmbedSecret.trim().isEmpty()) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", "error");
+            error.put("message", "METABASE_EMBED_SECRET is not configured on the backend.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+
+        try {
+            com.auth0.jwt.algorithms.Algorithm algorithm = com.auth0.jwt.algorithms.Algorithm.HMAC256(metabaseEmbedSecret);
+            
+            Map<String, Object> resource = new HashMap<>();
+            resource.put("dashboard", dashboardId);
+
+            Map<String, Object> params = new HashMap<>();
+            if (company != null && !company.trim().isEmpty()) {
+                params.put("company", company);
+            }
+            if (store != null && !store.trim().isEmpty()) {
+                params.put("store", store);
+            }
+
+            long expSeconds = (System.currentTimeMillis() / 1000L) + 600L; // 10 minutes expiry
+
+            String token = com.auth0.jwt.JWT.create()
+                    .withClaim("resource", resource)
+                    .withClaim("params", params)
+                    .withClaim("exp", expSeconds)
+                    .sign(algorithm);
+
+            String embedUrl = String.format("%s/embed/dashboard/%s#theme=light&bordered=false&titled=true", 
+                    metabaseSiteUrl, token);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("url", embedUrl);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Failed to generate Metabase secure embed URL", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("status", "error");
+            error.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
     }
 
     @PostMapping("/sync")
