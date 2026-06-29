@@ -243,14 +243,14 @@ def sync_shifts(conn, data):
     for item in data:
         rows.append((
             item.get("_id"),
-            item.get("Assigned User"),
-            item.get("Time - Start Time"),
-            item.get("Time - End Time"),
-            item.get("notes"),
-            item.get("Assigned Company"),
-            item.get("Type"),
-            item.get("Status"),
-            item.get("Assigned Store")
+            item.get("assigned_user_user") or item.get("Assigned User"),
+            item.get("start_time_date") or item.get("Time - Start Time"),
+            item.get("end_time_date") or item.get("Time - End Time"),
+            item.get("notes_text") or item.get("notes"),
+            item.get("assigned_company_custom____merchant") or item.get("Assigned Company"),
+            item.get("type_option_shift_type") or item.get("Type"),
+            item.get("status_option_shift_approval_status") or item.get("Status"),
+            item.get("assigned_store_custom_store") or item.get("Assigned Store")
         ))
         
     if not rows:
