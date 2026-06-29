@@ -463,7 +463,12 @@ public class OrchestrationService {
             try {
                 responseStr = restTemplate.postForObject(url, entity, String.class);
                 break;
+            } catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+                // 429: Quota exhausted for this model — no point retrying, escalate immediately to fallback
+                logs.add("WARNING: Gemini API (" + model + ") returned 429 Too Many Requests (quota exhausted). Skipping retries for this model.");
+                throw e;
             } catch (org.springframework.web.client.HttpServerErrorException.ServiceUnavailable e) {
+                // 503: Transient overload — retry with exponential backoff
                 logs.add("WARNING: Gemini API (" + model + ") returned 503 Service Unavailable (attempt " + attempt + "/" + maxRetries + "). Retrying in " + delayMs + "ms...");
                 if (attempt == maxRetries) {
                     throw e;
