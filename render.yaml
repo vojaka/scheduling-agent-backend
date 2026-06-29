@@ -35,6 +35,6 @@ services:
       - key: MB_DB_USER
         value: postgres.dejtvwewomgitszmvsba
       - key: MB_DB_PASS
-        value: wyfkes-jEcwoj-feqze8
+        sync: false
       - key: MB_DB_HOST
         value: aws-1-eu-west-2.pooler.supabase.com
