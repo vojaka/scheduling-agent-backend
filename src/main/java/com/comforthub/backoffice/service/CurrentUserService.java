@@ -63,6 +63,13 @@ public class CurrentUserService {
                 .filter(c -> c != null && !c.isBlank());
     }
 
+    /** The company name the current user represents. */
+    public Optional<String> currentCompanyName() {
+        return currentCompanyId()
+                .flatMap(companyRepository::findById)
+                .map(com.comforthub.backoffice.model.entity.CompanyEntity::getName);
+    }
+
     /** Whether the current user owns or merely works at their represented company. */
     public Role currentRole() {
         Optional<BubbleUserEntity> user = currentUser();

@@ -27,9 +27,10 @@ public class MeController {
     public MeResponse me() {
         Role role = currentUserService.currentRole();
         String companyId = currentUserService.currentCompanyId().orElse(null);
-        return new MeResponse(companyId, role.name(), role == Role.OWNER);
+        String companyName = currentUserService.currentCompanyName().orElse(null);
+        return new MeResponse(companyId, companyName, role.name(), role == Role.OWNER);
     }
 
     /** Identity + role for the current principal. `role` is OWNER | WORKER | NONE. */
-    public record MeResponse(String companyId, String role, boolean owner) {}
+    public record MeResponse(String companyId, String companyName, String role, boolean owner) {}
 }
