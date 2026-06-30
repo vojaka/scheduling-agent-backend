@@ -7,6 +7,7 @@ import com.comforthub.backoffice.client.BubbleClient;
 import com.comforthub.backoffice.dto.ShiftResponseDto;
 import com.comforthub.backoffice.model.BubbleShift;
 import com.comforthub.backoffice.service.BubbleSyncService;
+import com.comforthub.backoffice.service.CurrentUserService;
 import com.comforthub.backoffice.service.ScheduleOrchestrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class ScheduleController {
     private final ScheduleOrchestrationService orchestrationService;
     private final BubbleClient bubbleClient;
     private final BubbleSyncService bubbleSyncService;
+    private final CurrentUserService currentUserService;
 
     @Value("${metabase.site.url:http://178.105.76.235:3000}")
     private String metabaseSiteUrl;
@@ -38,10 +40,12 @@ public class ScheduleController {
 
     public ScheduleController(ScheduleOrchestrationService orchestrationService,
                               BubbleClient bubbleClient,
-                              BubbleSyncService bubbleSyncService) {
+                              BubbleSyncService bubbleSyncService,
+                              CurrentUserService currentUserService) {
         this.orchestrationService = orchestrationService;
         this.bubbleClient = bubbleClient;
         this.bubbleSyncService = bubbleSyncService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/dashboard-url")
@@ -101,8 +105,11 @@ public class ScheduleController {
         log.info("Schedule generation request. Prompt: {}, auto-commit: {}", request.getPrompt(), request.getCommit());
 
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
+        // Derive the company from the authenticated user; the frontend no longer sends it.
+        // Fall back to any request-supplied company for non-interactive/service callers.
+        String company = currentUserService.currentCompanyId().orElse(request.getCompany());
         ScheduleGenerateResponse response = orchestrationService.generateSchedule(
-                prompt, request.getMonth(), request.getCompany(), request.getWorkers(),
+                prompt, request.getMonth(), company, request.getWorkers(),
                 request.getBufferBeforeMinutes(), request.getBufferAfterMinutes());
 
         if (Boolean.TRUE.equals(request.getCommit())) {

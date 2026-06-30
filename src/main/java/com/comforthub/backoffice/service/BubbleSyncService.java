@@ -77,7 +77,7 @@ public class BubbleSyncService {
         try {
             log.info("Starting Bubble → PostgreSQL sync via JPA...");
 
-            // 1. Users
+            // 1. Users (load-or-create to preserve scoping columns set out-of-band)
             List<BubbleUserEntity> users = bubbleClient.fetchUsers().stream()
                     .map(this::toUserEntity)
                     .collect(Collectors.toList());
@@ -121,8 +121,23 @@ public class BubbleSyncService {
         }
     }
 
+    /**
+     * Load-or-create so the scoping columns (auth0_user_id, and any backfilled
+     * company_id) survive the hourly sync instead of being nulled out by a fresh
+     * all-args construction. company_id is updated only when Bubble provides it.
+     */
     private BubbleUserEntity toUserEntity(BubbleUser u) {
-        return new BubbleUserEntity(u.getId(), u.getName(), u.getRole(), u.getMaxHours(), u.getActive());
+        BubbleUserEntity e = userRepository.findById(u.getId()).orElseGet(BubbleUserEntity::new);
+        e.setId(u.getId());
+        e.setName(u.getName());
+        e.setRole(u.getRole());
+        e.setMaxHours(u.getMaxHours());
+        e.setActive(u.getActive());
+        if (u.getCompanyId() != null && !u.getCompanyId().isBlank()) {
+            e.setCompanyId(u.getCompanyId());
+        }
+        // auth0_user_id is never sourced from Bubble — preserved via load-or-create above.
+        return e;
     }
 
     private BubbleStoreEntity toStoreEntity(BubbleStore s) {

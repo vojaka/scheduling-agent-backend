@@ -50,4 +50,18 @@ public class BubbleUser {
     @JsonProperty("active")
     @JsonAlias({"active", "active_boolean"})
     private Boolean active;
+
+    // The user's "Representing a Company" company id (scoping key).
+    // NOTE: verify the exact Bubble JSON key against a /user API response;
+    // if none of these aliases match, company_id stays null and must be
+    // backfilled by SQL (see V2__add_user_scoping.sql).
+    @JsonProperty("representing_a_company")
+    @JsonAlias({
+        "representing_a_company",
+        "representing_a_company_custom____merchant",
+        "representing_a_company_custom_merchant",
+        "company",
+        "company_custom____merchant"
+    })
+    private String companyId;
 }
