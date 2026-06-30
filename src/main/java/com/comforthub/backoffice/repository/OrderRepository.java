@@ -16,10 +16,10 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
      * All params except companyId are optional (pass null to skip).
      */
     @Query("SELECT o FROM OrderEntity o WHERE o.companyId = :companyId" +
-           " AND (:storeId IS NULL OR o.storeId = :storeId)" +
-           " AND (:assignedTo IS NULL OR o.assignedTo = :assignedTo)" +
-           " AND (:orderNr IS NULL OR LOWER(o.orderNr) LIKE LOWER(CONCAT('%', :orderNr, '%')))" +
-           " AND (:customer IS NULL OR LOWER(o.customerName) LIKE LOWER(CONCAT('%', :customer, '%')))" +
+           " AND (CAST(:storeId AS string) IS NULL OR o.storeId = :storeId)" +
+           " AND (CAST(:assignedTo AS string) IS NULL OR o.assignedTo = :assignedTo)" +
+           " AND (CAST(:orderNr AS string) IS NULL OR LOWER(o.orderNr) LIKE LOWER(CONCAT('%', CAST(:orderNr AS string), '%')))" +
+           " AND (CAST(:customer AS string) IS NULL OR LOWER(o.customerName) LIKE LOWER(CONCAT('%', CAST(:customer AS string), '%')))" +
            " ORDER BY o.createdAt DESC")
     Page<OrderEntity> findByCompanyFiltered(@Param("companyId") String companyId,
                                             @Param("storeId") UUID storeId,

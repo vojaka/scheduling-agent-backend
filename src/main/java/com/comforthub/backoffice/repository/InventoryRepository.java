@@ -12,7 +12,7 @@ import java.util.UUID;
 public interface InventoryRepository extends JpaRepository<InventoryEntity, UUID> {
 
     @Query("SELECT i FROM InventoryEntity i WHERE i.companyId = :companyId AND i.isDeleted = false" +
-           " AND (:search IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', :search, '%')))")
+           " AND (CAST(:search AS string) IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
     Page<InventoryEntity> findActive(@Param("companyId") String companyId,
                                      @Param("search") String search,
                                      Pageable pageable);

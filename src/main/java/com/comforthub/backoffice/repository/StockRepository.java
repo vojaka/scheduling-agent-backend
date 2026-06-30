@@ -16,8 +16,8 @@ public interface StockRepository extends JpaRepository<StockEntity, UUID> {
 
     @Query("SELECT s FROM StockEntity s JOIN InventoryEntity i ON i.id = s.inventoryId" +
            " WHERE s.companyId = :companyId" +
-           " AND (:storeId IS NULL OR s.storeId = :storeId)" +
-           " AND (:name IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', :name, '%')))")
+           " AND (CAST(:storeId AS string) IS NULL OR s.storeId = :storeId)" +
+           " AND (CAST(:name AS string) IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%')))")
     Page<StockEntity> findByCompanyFiltered(@Param("companyId") String companyId,
                                             @Param("storeId") UUID storeId,
                                             @Param("name") String name,

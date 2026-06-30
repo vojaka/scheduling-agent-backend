@@ -17,9 +17,9 @@ public interface BookingRepository extends JpaRepository<BookingEntity, UUID> {
      * Returns all bookings whose window overlaps [from, to].
      */
     @Query("SELECT b FROM BookingEntity b WHERE b.companyId = :companyId" +
-           " AND (:workerId IS NULL OR b.workerId = :workerId)" +
-           " AND (:from IS NULL OR b.endTime >= :from)" +
-           " AND (:to IS NULL OR b.startTime <= :to)" +
+           " AND (CAST(:workerId AS string) IS NULL OR b.workerId = :workerId)" +
+           " AND (CAST(:from AS string) IS NULL OR b.endTime >= :from)" +
+           " AND (CAST(:to AS string) IS NULL OR b.startTime <= :to)" +
            " ORDER BY b.startTime ASC")
     Page<BookingEntity> findByCompanyFiltered(@Param("companyId") String companyId,
                                               @Param("workerId") UUID workerId,
