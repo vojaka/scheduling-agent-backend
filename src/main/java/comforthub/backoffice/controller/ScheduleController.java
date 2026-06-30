@@ -8,6 +8,7 @@ import com.comforthub.backoffice.dto.ShiftResponseDto;
 import com.comforthub.backoffice.model.BubbleShift;
 import com.comforthub.backoffice.service.BubbleSyncService;
 import com.comforthub.backoffice.service.ScheduleOrchestrationService;
+import com.comforthub.backoffice.service.ShiftService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class ScheduleController {
     private final ScheduleOrchestrationService orchestrationService;
     private final BubbleClient bubbleClient;
     private final BubbleSyncService bubbleSyncService;
+    private final ShiftService shiftService;
 
     @Value("${metabase.site.url:http://178.105.76.235:3000}")
     private String metabaseSiteUrl;
@@ -38,10 +40,12 @@ public class ScheduleController {
 
     public ScheduleController(ScheduleOrchestrationService orchestrationService,
                               BubbleClient bubbleClient,
-                              BubbleSyncService bubbleSyncService) {
+                              BubbleSyncService bubbleSyncService,
+                              ShiftService shiftService) {
         this.orchestrationService = orchestrationService;
         this.bubbleClient = bubbleClient;
         this.bubbleSyncService = bubbleSyncService;
+        this.shiftService = shiftService;
     }
 
     @GetMapping("/dashboard-url")
@@ -106,10 +110,11 @@ public class ScheduleController {
         if (Boolean.TRUE.equals(request.getCommit())) {
             if (response.getValidationReport() != null && response.getValidationReport().isValid()
                     && response.getProposedShifts() != null) {
-                log.info("Schedule valid. Auto-committing {} shifts to Bubble.", response.getProposedShifts().size());
-                response.getOrchestratorLogs().add("Auto-committing proposed shifts to Bubble...");
+                log.info("Schedule valid. Auto-committing {} shifts to Bubble + PostgreSQL.", response.getProposedShifts().size());
+                response.getOrchestratorLogs().add("Auto-committing proposed shifts to Bubble + PostgreSQL...");
 
                 int successCount = 0;
+                int pgCount = 0;
                 for (ShiftResponseDto shiftDto : response.getProposedShifts()) {
                     try {
                         BubbleShift bs = new BubbleShift();
@@ -129,8 +134,18 @@ public class ScheduleController {
                     } catch (Exception e) {
                         log.error("Failed to commit shift for user {}: {}", shiftDto.getAssignedUser(), e.getMessage());
                     }
+
+                    // Dual-write to PostgreSQL (system of record). Best-effort during migration.
+                    try {
+                        shiftService.persistGenerated(shiftDto);
+                        pgCount++;
+                    } catch (Exception e) {
+                        log.error("Failed to persist shift to PostgreSQL for user {}: {}",
+                                shiftDto.getAssignedUser(), e.getMessage());
+                    }
                 }
-                response.getOrchestratorLogs().add("Auto-committed " + successCount + " shifts to Bubble.");
+                response.getOrchestratorLogs().add(
+                        "Auto-committed " + successCount + " shifts to Bubble, " + pgCount + " to PostgreSQL.");
             } else {
                 log.warn("Auto-commit skipped: schedule invalid or empty.");
                 response.getOrchestratorLogs().add("Auto-commit skipped: schedule invalid or empty.");

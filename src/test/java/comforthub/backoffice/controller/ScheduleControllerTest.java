@@ -6,6 +6,7 @@ import com.comforthub.backoffice.dto.ValidationReport;
 import com.comforthub.backoffice.exception.GeminiUnavailableException;
 import com.comforthub.backoffice.service.BubbleSyncService;
 import com.comforthub.backoffice.service.ScheduleOrchestrationService;
+import com.comforthub.backoffice.service.ShiftService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -52,6 +53,9 @@ class ScheduleControllerTest {
 
     @MockBean
     private BubbleSyncService bubbleSyncService;
+
+    @MockBean
+    private ShiftService shiftService;
 
     @Autowired
     private ObjectMapper objectMapper;
