@@ -17,30 +17,27 @@ import java.util.Map;
  * field aliases</b>, so adapting to schema changes — or replicating this
  * pattern to the other controllers — touches only this file.
  *
- * <h2>⚠️ PROVISIONAL — field aliases NOT yet verified</h2>
- * Bubble was unreachable when this was written (this session's egress policy
- * blocks {@code comforthub.ee}, and a Bubble incident also blocked fetching the
- * swagger from the user's side). The opaque, unguessable aliases below are left
- * as <b>labelled placeholders</b> ({@code TODO__*}) rather than guesses — the
- * comment on each gives the most likely real value, inferred from this repo's
- * established convention (see {@code BubbleShift} / {@code sync.py}):
+ * <h2>⚠️ Field aliases are INFERRED — verify before merging to main</h2>
+ * Bubble couldn't be reached to read the real swagger (this session's egress
+ * policy blocks {@code comforthub.ee}, plus a Bubble incident). The aliases
+ * below are therefore <b>best-effort inferences</b> from this repo's established
+ * convention (see {@code BubbleShift} / {@code sync.py}):
  * <pre>
  *   &lt;field&gt;_&lt;type&gt;                e.g. notes_text, end_time_date, rate_number
  *   &lt;field&gt;_option_&lt;optionset&gt;     e.g. status_option_shift_approval_status
  *   &lt;field&gt;_custom_&lt;datatype&gt;       e.g. assigned_store_custom_store
  *   &lt;field&gt;_custom____&lt;datatype&gt;    e.g. assigned_company_custom____merchant
  * </pre>
- * To go live, replace every {@code TODO__*} value below with the exact key from:
+ * <b>Merging to {@code main} deploys to prod</b>, so confirm every {@code F_*}
+ * value and the six status display strings against the live schema first:
  * <pre>
  *   curl -s -H "Authorization: Bearer $TOKEN" \
  *     https://comforthub.ee/version-test/api/1.1/meta/swagger.json \
  *     | jq '.definitions.order.properties | keys'
  * </pre>
- * and confirm the six status display strings against the {@code order} status
- * option set. Read paths already try several candidate keys (placeholder +
- * likely alias + display name), so reads degrade gracefully; the company
- * constraint and the write payloads need the exact key, so those are the
- * critical ones to verify.
+ * Read paths try several candidate keys (alias + display name) so display
+ * degrades gracefully; the company constraint and write payloads use the exact
+ * key, so those are the critical ones to confirm.
  */
 @Component
 public class OrderBubbleMapper {
@@ -49,45 +46,47 @@ public class OrderBubbleMapper {
     public static final String TYPE = "order";
 
     // ====================================================================
-    // FIELD ALIASES — ⚠️ replace every TODO__ value with the verified key.
+    // FIELD ALIASES — ⚠️ INFERRED from convention; verify before merge→deploy.
     // ====================================================================
 
     /** Owning merchant/company link. CRITICAL: used for the scope constraint.
-     *  Likely: "company_custom____merchant" (cf. wagerate) or "..._custom____company". */
-    static final String F_COMPANY = "TODO__company_merchant_link";
+     *  Inferred from wagerate's "company_custom____merchant" (Merchant refs use
+     *  the 4-underscore form across shift/store/user/wagerate). */
+    static final String F_COMPANY = "company_custom____merchant";
 
-    /** Order number text. Likely: "order_nr_text" / "order_number_text". */
-    static final String F_ORDER_NR = "TODO__order_nr_text";
+    /** Order number text. Inferred "<field>_text" form; alt: "order_number_text". */
+    static final String F_ORDER_NR = "order_nr_text";
 
-    /** Customer display name. Likely: "customer_name_text" / "client_name_text". */
-    static final String F_CUSTOMER_NAME = "TODO__customer_name_text";
+    /** Customer display name (text). Alt: "client_name_text". */
+    static final String F_CUSTOMER_NAME = "customer_name_text";
 
-    /** Customer record link. Likely: "customer_user" / "customer_custom_individual". */
-    static final String F_CUSTOMER = "TODO__customer_link";
+    /** Customer record link (User ref). Alt: "customer_custom_individual". */
+    static final String F_CUSTOMER = "customer_user";
 
-    /** Store link. Likely: "store_custom_store" (cf. shift assigned_store_custom_store). */
-    static final String F_STORE = "TODO__store_custom_store";
+    /** Store link. Inferred from shift's "assigned_store_custom_store". */
+    static final String F_STORE = "store_custom_store";
 
-    /** Order type. Likely: "type_option_order_type". */
-    static final String F_TYPE = "TODO__type_option_order_type";
+    /** Order type option set. Inferred from "type_option_shift_type"; alt: text. */
+    static final String F_TYPE = "type_option_order_type";
 
-    /** Order amount/total. Likely: "amount_number" / "total_number" / "total_amount_number". */
-    static final String F_AMOUNT = "TODO__amount_number";
+    /** Order amount/total (number). Alt: "total_number" / "total_amount_number". */
+    static final String F_AMOUNT = "amount_number";
 
-    /** Payment status. Likely: "payment_status_option_payment_status" or "..._text". */
-    static final String F_PAYMENT_STATUS = "TODO__payment_status_option_payment_status";
+    /** Payment status option set. Alt: "payment_status_text". */
+    static final String F_PAYMENT_STATUS = "payment_status_option_payment_status";
 
-    /** Kanban/fulfilment status option set. Likely: "status_option_order_status". */
-    static final String F_STATUS = "TODO__status_option_order_status";
+    /** Kanban/fulfilment status option set. Inferred from
+     *  "status_option_shift_approval_status"; option set assumed "order_status". */
+    static final String F_STATUS = "status_option_order_status";
 
-    /** Assigned worker link. Likely: "assigned_worker_user" / "assigned_to_user". */
-    static final String F_ASSIGNED_TO = "TODO__assigned_worker_user";
+    /** Assigned worker link (User ref). Alt: "assigned_to_user" / "assigned_user_user". */
+    static final String F_ASSIGNED_TO = "assigned_worker_user";
 
-    /** Ready-by date. Likely: "ready_by_date" / "ready_at_date". */
-    static final String F_READY_BY = "TODO__ready_by_date";
+    /** Ready-by date. Alt: "ready_at_date". */
+    static final String F_READY_BY = "ready_by_date";
 
-    /** Free-text notes. Likely: "notes_text". */
-    static final String F_NOTES = "TODO__notes_text";
+    /** Free-text notes. Matches shift's "notes_text". */
+    static final String F_NOTES = "notes_text";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
