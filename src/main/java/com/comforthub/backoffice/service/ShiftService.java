@@ -19,6 +19,9 @@ import java.util.UUID;
 /**
  * Backoffice write operations against the PostgreSQL system of record (bubble_shifts).
  * Used both by the CRUD endpoints and by the schedule-commit dual-write path.
+ *
+ * Backoffice-created shifts are stamped with the caller's company so they stay
+ * within the user's scope (see CurrentUserService).
  */
 @Service
 public class ShiftService {
@@ -26,9 +29,12 @@ public class ShiftService {
     private static final Logger log = LoggerFactory.getLogger(ShiftService.class);
 
     private final BubbleShiftRepository shiftRepository;
+    private final CurrentUserService currentUserService;
 
-    public ShiftService(BubbleShiftRepository shiftRepository) {
+    public ShiftService(BubbleShiftRepository shiftRepository,
+                        CurrentUserService currentUserService) {
         this.shiftRepository = shiftRepository;
+        this.currentUserService = currentUserService;
     }
 
     public List<BubbleShiftEntity> findAll() {
@@ -92,7 +98,10 @@ public class ShiftService {
         entity.setStartTime(start);
         entity.setEndTime(end);
         entity.setNotes(request.getNotes());
-        entity.setAssignedCompany(request.getAssignedCompany());
+        // Stamp with the caller's company so writes stay within scope; fall back to the
+        // request value if the user has no resolvable company (e.g. service callers).
+        entity.setAssignedCompany(
+                currentUserService.currentCompanyId().orElse(request.getAssignedCompany()));
         entity.setType(request.getType());
         entity.setStatus(request.getStatus());
         entity.setAssignedStore(request.getAssignedStore());
