@@ -1,23 +1,24 @@
 package com.comforthub.backoffice.model.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Entity
-@Table(name = "bubble_wage_rates")
+@Table(name = "wage_rates")
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class BubbleWageRateEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
-    private String id;
+    private UUID id;
+
+    @Column(name = "bubble_id", unique = true)
+    private String bubbleId;
 
     @Column(name = "company")
     private String company;

@@ -102,6 +102,8 @@ public class ScheduleController {
 
     @PostMapping("/generate")
     public ResponseEntity<ScheduleGenerateResponse> generate(@RequestBody ScheduleGenerateRequest request) {
+        // OWNER-only: workers may view shifts but cannot generate or commit schedules.
+        currentUserService.requireOwner();
         log.info("Schedule generation request. Prompt: {}, auto-commit: {}", request.getPrompt(), request.getCommit());
 
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
@@ -151,6 +153,8 @@ public class ScheduleController {
 
     @PostMapping("/commit")
     public ResponseEntity<Map<String, Object>> commit(@RequestBody List<BubbleShift> shifts) {
+        // OWNER-only: workers may view shifts but cannot generate or commit schedules.
+        currentUserService.requireOwner();
         log.info("Bulk commit of {} shifts to Bubble.", shifts != null ? shifts.size() : 0);
 
         if (shifts == null || shifts.isEmpty()) {

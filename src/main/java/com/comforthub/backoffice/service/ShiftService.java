@@ -17,8 +17,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Backoffice write operations against the PostgreSQL system of record (bubble_shifts).
- * Used both by the CRUD endpoints and by the schedule-commit dual-write path.
+ * Backoffice write operations against the PostgreSQL system of record (shifts).
+ * Shifts are addressed by their UUID surrogate id; backoffice-created shifts have
+ * no Bubble id. Used by the CRUD endpoints and the schedule-commit dual-write path.
  *
  * Backoffice-created shifts are stamped with the caller's company so they stay
  * within the user's scope (see CurrentUserService).
@@ -41,20 +42,19 @@ public class ShiftService {
         return shiftRepository.findAll();
     }
 
-    public Optional<BubbleShiftEntity> findById(String id) {
+    public Optional<BubbleShiftEntity> findById(UUID id) {
         return shiftRepository.findById(id);
     }
 
     @Transactional
     public BubbleShiftEntity create(ShiftWriteRequest request) {
         BubbleShiftEntity entity = new BubbleShiftEntity();
-        entity.setId("local-" + UUID.randomUUID());
         applyRequest(entity, request);
         return shiftRepository.save(entity);
     }
 
     @Transactional
-    public Optional<BubbleShiftEntity> update(String id, ShiftWriteRequest request) {
+    public Optional<BubbleShiftEntity> update(UUID id, ShiftWriteRequest request) {
         return shiftRepository.findById(id).map(entity -> {
             applyRequest(entity, request);
             return shiftRepository.save(entity);
@@ -62,7 +62,7 @@ public class ShiftService {
     }
 
     @Transactional
-    public boolean delete(String id) {
+    public boolean delete(UUID id) {
         if (!shiftRepository.existsById(id)) {
             return false;
         }
@@ -72,8 +72,13 @@ public class ShiftService {
 
     @Transactional
     public void persistGenerated(ShiftResponseDto dto) {
-        BubbleShiftEntity entity = new BubbleShiftEntity();
-        entity.setId(dto.getId() != null ? dto.getId() : "local-" + UUID.randomUUID());
+        // Gemini-generated shift: keep its Bubble id (if any) in bubble_id; UUID id auto-generates.
+        BubbleShiftEntity entity = dto.getId() != null
+                ? shiftRepository.findByBubbleId(dto.getId()).orElseGet(BubbleShiftEntity::new)
+                : new BubbleShiftEntity();
+        if (dto.getId() != null) {
+            entity.setBubbleId(dto.getId());
+        }
         entity.setAssignedUser(dto.getAssignedUser());
         entity.setStartTime(parseOffset(dto.getStartTime()));
         entity.setEndTime(parseOffset(dto.getEndTime()));
