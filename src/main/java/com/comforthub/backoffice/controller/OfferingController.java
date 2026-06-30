@@ -93,20 +93,19 @@ public class OfferingController {
         UUID inventoryId = body.get("inventoryId");
         if (inventoryId == null) return ResponseEntity.badRequest().build();
 
-        return currentUserService.currentCompanyId()
+        var target = currentUserService.currentCompanyId()
                 .flatMap(companyId -> offeringRepository.findById(id)
                         .filter(o -> companyId.equals(o.getCompanyId()))
                         .flatMap(o -> inventoryRepository.findById(inventoryId)
-                                .filter(i -> companyId.equals(i.getCompanyId()))))
-                .map(i -> {
-                    InventoryOfferingEntity link = new InventoryOfferingEntity(inventoryId, id);
-                    // save is idempotent — if the row already exists the PK constraint ignores it
-                    if (!inventoryOfferingRepository.existsById(new InventoryOfferingEntity.PK(inventoryId, id))) {
-                        inventoryOfferingRepository.save(link);
-                    }
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                                .filter(i -> companyId.equals(i.getCompanyId()))));
+        if (target.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        // save is idempotent — if the row already exists the PK constraint ignores it
+        if (!inventoryOfferingRepository.existsById(new InventoryOfferingEntity.PK(inventoryId, id))) {
+            inventoryOfferingRepository.save(new InventoryOfferingEntity(inventoryId, id));
+        }
+        return ResponseEntity.ok().build();
     }
 
     /**
@@ -119,25 +118,25 @@ public class OfferingController {
         UUID inventoryId = body.get("inventoryId");
         if (inventoryId == null) return ResponseEntity.badRequest().build();
 
-        return currentUserService.currentCompanyId()
+        var offering = currentUserService.currentCompanyId()
                 .flatMap(companyId -> offeringRepository.findById(id)
-                        .filter(o -> companyId.equals(o.getCompanyId())))
-                .map(o -> {
-                    inventoryOfferingRepository.deleteByInventoryIdAndOfferingId(inventoryId, id);
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                        .filter(o -> companyId.equals(o.getCompanyId())));
+        if (offering.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        inventoryOfferingRepository.deleteByInventoryIdAndOfferingId(inventoryId, id);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOffering(@PathVariable UUID id) {
-        return currentUserService.currentCompanyId()
+        var existing = currentUserService.currentCompanyId()
                 .flatMap(companyId -> offeringRepository.findById(id)
-                        .filter(o -> companyId.equals(o.getCompanyId())))
-                .map(existing -> {
-                    offeringRepository.delete(existing);
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                        .filter(o -> companyId.equals(o.getCompanyId())));
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        offeringRepository.delete(existing.get());
+        return ResponseEntity.ok().build();
     }
 }

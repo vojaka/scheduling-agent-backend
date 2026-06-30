@@ -85,14 +85,14 @@ public class InventoryController {
     /** Soft-delete — sets is_deleted = true. */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteInventory(@PathVariable UUID id) {
-        return currentUserService.currentCompanyId()
+        var existing = currentUserService.currentCompanyId()
                 .flatMap(companyId -> inventoryRepository.findById(id)
-                        .filter(i -> companyId.equals(i.getCompanyId())))
-                .map(existing -> {
-                    existing.setIsDeleted(true);
-                    inventoryRepository.save(existing);
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                        .filter(i -> companyId.equals(i.getCompanyId())));
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        existing.get().setIsDeleted(true);
+        inventoryRepository.save(existing.get());
+        return ResponseEntity.ok().build();
     }
 }

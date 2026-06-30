@@ -80,13 +80,13 @@ public class BookingController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBooking(@PathVariable UUID id) {
-        return currentUserService.currentCompanyId()
+        var existing = currentUserService.currentCompanyId()
                 .flatMap(companyId -> bookingRepository.findById(id)
-                        .filter(b -> companyId.equals(b.getCompanyId())))
-                .map(existing -> {
-                    bookingRepository.delete(existing);
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                        .filter(b -> companyId.equals(b.getCompanyId())));
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        bookingRepository.delete(existing.get());
+        return ResponseEntity.ok().build();
     }
 }

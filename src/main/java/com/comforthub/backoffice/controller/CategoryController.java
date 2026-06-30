@@ -63,13 +63,13 @@ public class CategoryController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable UUID id) {
-        return currentUserService.currentCompanyId()
+        var existing = currentUserService.currentCompanyId()
                 .flatMap(companyId -> categoryRepository.findById(id)
-                        .filter(c -> companyId.equals(c.getCompanyId())))
-                .map(existing -> {
-                    categoryRepository.delete(existing);
-                    return ResponseEntity.<Void>ok().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+                        .filter(c -> companyId.equals(c.getCompanyId())));
+        if (existing.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        categoryRepository.delete(existing.get());
+        return ResponseEntity.ok().build();
     }
 }
