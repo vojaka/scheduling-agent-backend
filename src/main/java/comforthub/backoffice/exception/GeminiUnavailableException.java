@@ -1,4 +1,4 @@
-package com.example.scheduler.exception;
+package com.comforthub.backoffice.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;

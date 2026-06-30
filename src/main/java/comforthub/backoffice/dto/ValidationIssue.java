@@ -1,4 +1,4 @@
-package com.example.scheduler.dto;
+package com.comforthub.backoffice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,7 +11,7 @@ public class ValidationIssue {
     public enum Severity {
         ERROR, WARNING
     }
-    
+
     private Severity severity;
     private String rule;
     private String assignedUser;

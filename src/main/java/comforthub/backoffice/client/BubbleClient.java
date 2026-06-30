@@ -1,10 +1,10 @@
-package com.example.scheduler.client;
+package com.comforthub.backoffice.client;
 
-import com.example.scheduler.model.BubbleAvailability;
-import com.example.scheduler.model.BubbleShift;
-import com.example.scheduler.model.BubbleStore;
-import com.example.scheduler.model.BubbleUser;
-import com.example.scheduler.model.BubbleWageRate;
+import com.comforthub.backoffice.model.BubbleAvailability;
+import com.comforthub.backoffice.model.BubbleShift;
+import com.comforthub.backoffice.model.BubbleStore;
+import com.comforthub.backoffice.model.BubbleUser;
+import com.comforthub.backoffice.model.BubbleWageRate;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -30,7 +30,7 @@ public class BubbleClient {
     @Value("${bubble.api.token}")
     private String bubbleToken;
 
-    public BubbleClient(RestClient.Builder restClientBuilder, 
+    public BubbleClient(RestClient.Builder restClientBuilder,
                         @Value("${bubble.api.base-url}") String baseUrl) {
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
@@ -144,12 +144,11 @@ public class BubbleClient {
         return Collections.emptyList();
     }
 
-
     public BubbleShift createShift(BubbleShift shift) {
         try {
-            log.info("Creating shift in Bubble for user: {} ({} - {})", 
+            log.info("Creating shift in Bubble for user: {} ({} - {})",
                     shift.getAssignedUser(), shift.getStartTime(), shift.getEndTime());
-            
+
             BubbleShiftPostPayload payload = new BubbleShiftPostPayload();
             payload.setAssignedCompany(shift.getAssignedCompany());
             payload.setAssignedUser(shift.getAssignedUser());

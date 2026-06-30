@@ -1,11 +1,11 @@
-package com.example.scheduler.service;
+package com.comforthub.backoffice.service;
 
-import com.example.scheduler.client.BubbleClient;
-import com.example.scheduler.model.BubbleAvailability;
-import com.example.scheduler.model.BubbleShift;
-import com.example.scheduler.model.BubbleStore;
-import com.example.scheduler.model.BubbleUser;
-import com.example.scheduler.model.BubbleWageRate;
+import com.comforthub.backoffice.client.BubbleClient;
+import com.comforthub.backoffice.model.BubbleAvailability;
+import com.comforthub.backoffice.model.BubbleShift;
+import com.comforthub.backoffice.model.BubbleStore;
+import com.comforthub.backoffice.model.BubbleUser;
+import com.comforthub.backoffice.model.BubbleWageRate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,10 +22,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Syncs data from the Bubble REST API into the PostgreSQL database (via PostgREST).
+ * Runs automatically every hour and can be triggered manually via POST /api/schedule/sync.
+ *
+ * NOTE: This service will be removed once the React backoffice writes directly to PostgreSQL
+ * and Bubble is decommissioned (Phase 5 of migration).
+ */
 @Service
-public class SupabaseSyncService {
+public class BubbleSyncService {
 
-    private static final Logger log = LoggerFactory.getLogger(SupabaseSyncService.class);
+    private static final Logger log = LoggerFactory.getLogger(BubbleSyncService.class);
 
     private final BubbleClient bubbleClient;
     private final RestTemplate restTemplate;
@@ -36,39 +43,33 @@ public class SupabaseSyncService {
     @Value("${supabase.api.key:}")
     private String supabaseApiKey;
 
-    public SupabaseSyncService(BubbleClient bubbleClient) {
+    public BubbleSyncService(BubbleClient bubbleClient) {
         this.bubbleClient = bubbleClient;
         this.restTemplate = new RestTemplate();
     }
 
-    /**
-     * Run the synchronization task automatically every hour.
-     */
     @Scheduled(cron = "0 0 * * * *")
     public void scheduledSync() {
-        log.info("Triggering scheduled Supabase database synchronization...");
+        log.info("Triggering scheduled Bubble → PostgreSQL sync...");
         try {
             syncNow();
         } catch (Exception e) {
-            log.error("Scheduled Supabase sync failed", e);
+            log.error("Scheduled sync failed", e);
         }
     }
 
-    /**
-     * Perform the synchronization.
-     */
     public synchronized String syncNow() {
-        if (supabaseUrl == null || supabaseUrl.trim().isEmpty() || 
-            supabaseApiKey == null || supabaseApiKey.trim().isEmpty()) {
-            log.warn("Supabase sync skipped: SUPABASE_API_URL or SUPABASE_API_KEY is not configured.");
+        if (supabaseUrl == null || supabaseUrl.trim().isEmpty() ||
+                supabaseApiKey == null || supabaseApiKey.trim().isEmpty()) {
+            log.warn("Sync skipped: SUPABASE_API_URL or SUPABASE_API_KEY not configured.");
             return "Skipped: Configuration missing";
         }
 
         StringBuilder report = new StringBuilder("Sync report:\n");
         try {
-            log.info("Starting Supabase database sync to host: {}", supabaseUrl);
+            log.info("Starting Bubble → PostgreSQL sync to: {}", supabaseUrl);
 
-            // 1. Sync Users
+            // 1. Users
             List<BubbleUser> users = bubbleClient.fetchUsers();
             List<Map<String, Object>> userPayload = new ArrayList<>();
             for (BubbleUser u : users) {
@@ -83,7 +84,7 @@ public class SupabaseSyncService {
             sendPayload("bubble_users", userPayload);
             report.append("- Synced ").append(users.size()).append(" users.\n");
 
-            // 2. Sync Stores
+            // 2. Stores
             List<BubbleStore> stores = bubbleClient.fetchStores();
             List<Map<String, Object>> storePayload = new ArrayList<>();
             for (BubbleStore s : stores) {
@@ -98,7 +99,7 @@ public class SupabaseSyncService {
             sendPayload("bubble_stores", storePayload);
             report.append("- Synced ").append(stores.size()).append(" stores.\n");
 
-            // 3. Sync Availability
+            // 3. Availability
             List<BubbleAvailability> availabilities = bubbleClient.fetchAvailability();
             List<Map<String, Object>> availabilityPayload = new ArrayList<>();
             for (BubbleAvailability a : availabilities) {
@@ -114,9 +115,9 @@ public class SupabaseSyncService {
                 availabilityPayload.add(row);
             }
             sendPayload("bubble_availability", availabilityPayload);
-            report.append("- Synced ").append(availabilities.size()).append(" availability profiles.\n");
+            report.append("- Synced ").append(availabilities.size()).append(" availability records.\n");
 
-            // 4. Sync Wage Rates
+            // 4. Wage Rates
             List<BubbleWageRate> wages = bubbleClient.fetchWageRates();
             List<Map<String, Object>> wagePayload = new ArrayList<>();
             for (BubbleWageRate w : wages) {
@@ -130,7 +131,7 @@ public class SupabaseSyncService {
             sendPayload("bubble_wage_rates", wagePayload);
             report.append("- Synced ").append(wages.size()).append(" wage rates.\n");
 
-            // 5. Sync Shifts
+            // 5. Shifts
             List<BubbleShift> shifts = bubbleClient.fetchShifts();
             List<Map<String, Object>> shiftPayload = new ArrayList<>();
             for (BubbleShift s : shifts) {
@@ -149,19 +150,17 @@ public class SupabaseSyncService {
             sendPayload("bubble_shifts", shiftPayload);
             report.append("- Synced ").append(shifts.size()).append(" shifts.\n");
 
-            log.info("Supabase database sync completed successfully.");
+            log.info("Bubble → PostgreSQL sync completed.");
             report.append("Status: Success");
             return report.toString();
         } catch (Exception e) {
-            log.error("Sync to Supabase failed", e);
+            log.error("Sync failed", e);
             return "Sync failed: " + e.getMessage();
         }
     }
 
     private void sendPayload(String tableName, List<Map<String, Object>> payload) {
-        if (payload.isEmpty()) {
-            return;
-        }
+        if (payload.isEmpty()) return;
 
         String url = String.format("%s/%s", supabaseUrl, tableName);
 
@@ -171,8 +170,7 @@ public class SupabaseSyncService {
         headers.set("Authorization", "Bearer " + supabaseApiKey);
         headers.set("Prefer", "resolution=merge-duplicates");
 
-        HttpEntity<List<Map<String, Object>>> entity = new HttpEntity<>(payload, headers);
-
-        restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        restTemplate.exchange(url, HttpMethod.POST,
+                new HttpEntity<>(payload, headers), String.class);
     }
 }

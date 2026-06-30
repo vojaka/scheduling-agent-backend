@@ -1,4 +1,4 @@
-package com.example.scheduler.model;
+package com.comforthub.backoffice.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;

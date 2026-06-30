@@ -1,4 +1,4 @@
-package com.example.scheduler.model;
+package com.comforthub.backoffice.model;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -48,7 +48,6 @@ public class BubbleShift {
     @JsonProperty("Assigned Store")
     @JsonAlias({"Assigned Store", "assigned_store_custom_store"})
     private String assignedStore;
-
 
     public BubbleShift(String id, String assignedUser, String startTime, String endTime, String notes) {
         this.id = id;
