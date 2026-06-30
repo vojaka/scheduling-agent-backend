@@ -1,13 +1,34 @@
 package com.comforthub.backoffice.model.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Entity @Table(name = "bubble_stores") @Data @NoArgsConstructor @AllArgsConstructor
+import java.util.UUID;
+
+@Entity
+@Table(name = "stores")
+@Data
+@NoArgsConstructor
 public class BubbleStoreEntity {
-    @Id @Column(name = "id", nullable = false) private String id;
-    @Column(name = "name") private String name;
-    @Column(name = "company") private String company;
-    @Column(name = "availability_id") private String availabilityId;
-    @Column(name = "is_deleted") private Boolean isDeleted;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false)
+    private UUID id;
+
+    @Column(name = "bubble_id", unique = true)
+    private String bubbleId;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "company")
+    private String company;
+
+    @Column(name = "availability_id")
+    private String availabilityId;
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 }
