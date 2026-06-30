@@ -6,24 +6,30 @@ import com.comforthub.backoffice.model.BubbleShift;
 import com.comforthub.backoffice.model.BubbleStore;
 import com.comforthub.backoffice.model.BubbleUser;
 import com.comforthub.backoffice.model.BubbleWageRate;
+import com.comforthub.backoffice.model.entity.BubbleAvailabilityEntity;
+import com.comforthub.backoffice.model.entity.BubbleShiftEntity;
+import com.comforthub.backoffice.model.entity.BubbleStoreEntity;
+import com.comforthub.backoffice.model.entity.BubbleUserEntity;
+import com.comforthub.backoffice.model.entity.BubbleWageRateEntity;
+import com.comforthub.backoffice.repository.BubbleAvailabilityRepository;
+import com.comforthub.backoffice.repository.BubbleShiftRepository;
+import com.comforthub.backoffice.repository.BubbleStoreRepository;
+import com.comforthub.backoffice.repository.BubbleUserRepository;
+import com.comforthub.backoffice.repository.BubbleWageRateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * Syncs data from the Bubble REST API into the PostgreSQL database (via PostgREST).
+ * Syncs data from the Bubble REST API into the PostgreSQL database via JPA/JDBC.
  * Runs automatically every hour and can be triggered manually via POST /api/schedule/sync.
  *
  * NOTE: This service will be removed once the React backoffice writes directly to PostgreSQL
@@ -35,17 +41,24 @@ public class BubbleSyncService {
     private static final Logger log = LoggerFactory.getLogger(BubbleSyncService.class);
 
     private final BubbleClient bubbleClient;
-    private final RestTemplate restTemplate;
+    private final BubbleUserRepository userRepository;
+    private final BubbleStoreRepository storeRepository;
+    private final BubbleAvailabilityRepository availabilityRepository;
+    private final BubbleWageRateRepository wageRateRepository;
+    private final BubbleShiftRepository shiftRepository;
 
-    @Value("${supabase.api.url:}")
-    private String supabaseUrl;
-
-    @Value("${supabase.api.key:}")
-    private String supabaseApiKey;
-
-    public BubbleSyncService(BubbleClient bubbleClient) {
+    public BubbleSyncService(BubbleClient bubbleClient,
+                             BubbleUserRepository userRepository,
+                             BubbleStoreRepository storeRepository,
+                             BubbleAvailabilityRepository availabilityRepository,
+                             BubbleWageRateRepository wageRateRepository,
+                             BubbleShiftRepository shiftRepository) {
         this.bubbleClient = bubbleClient;
-        this.restTemplate = new RestTemplate();
+        this.userRepository = userRepository;
+        this.storeRepository = storeRepository;
+        this.availabilityRepository = availabilityRepository;
+        this.wageRateRepository = wageRateRepository;
+        this.shiftRepository = shiftRepository;
     }
 
     @Scheduled(cron = "0 0 * * * *")
@@ -58,96 +71,45 @@ public class BubbleSyncService {
         }
     }
 
+    @Transactional
     public synchronized String syncNow() {
-        if (supabaseUrl == null || supabaseUrl.trim().isEmpty() ||
-                supabaseApiKey == null || supabaseApiKey.trim().isEmpty()) {
-            log.warn("Sync skipped: SUPABASE_API_URL or SUPABASE_API_KEY not configured.");
-            return "Skipped: Configuration missing";
-        }
-
         StringBuilder report = new StringBuilder("Sync report:\n");
         try {
-            log.info("Starting Bubble → PostgreSQL sync to: {}", supabaseUrl);
+            log.info("Starting Bubble → PostgreSQL sync via JPA...");
 
             // 1. Users
-            List<BubbleUser> users = bubbleClient.fetchUsers();
-            List<Map<String, Object>> userPayload = new ArrayList<>();
-            for (BubbleUser u : users) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", u.getId());
-                row.put("name", u.getName());
-                row.put("role", u.getRole());
-                row.put("max_hours", u.getMaxHours());
-                row.put("active", u.getActive());
-                userPayload.add(row);
-            }
-            sendPayload("bubble_users", userPayload);
+            List<BubbleUserEntity> users = bubbleClient.fetchUsers().stream()
+                    .map(this::toUserEntity)
+                    .collect(Collectors.toList());
+            userRepository.saveAll(users);
             report.append("- Synced ").append(users.size()).append(" users.\n");
 
             // 2. Stores
-            List<BubbleStore> stores = bubbleClient.fetchStores();
-            List<Map<String, Object>> storePayload = new ArrayList<>();
-            for (BubbleStore s : stores) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", s.getId());
-                row.put("name", s.getName());
-                row.put("company", s.getCompany());
-                row.put("availability_id", s.getAvailabilityId());
-                row.put("is_deleted", s.getIsDeleted());
-                storePayload.add(row);
-            }
-            sendPayload("bubble_stores", storePayload);
+            List<BubbleStoreEntity> stores = bubbleClient.fetchStores().stream()
+                    .map(this::toStoreEntity)
+                    .collect(Collectors.toList());
+            storeRepository.saveAll(stores);
             report.append("- Synced ").append(stores.size()).append(" stores.\n");
 
             // 3. Availability
-            List<BubbleAvailability> availabilities = bubbleClient.fetchAvailability();
-            List<Map<String, Object>> availabilityPayload = new ArrayList<>();
-            for (BubbleAvailability a : availabilities) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", a.getId());
-                row.put("thing_type", a.getThingType());
-                row.put("thing_id", a.getThingId());
-                row.put("available_days", a.getAvailableDays());
-                row.put("workday_start_hour", a.getWorkdayStartHour());
-                row.put("workday_end_hour", a.getWorkdayEndHour());
-                row.put("weekend_start_hour", a.getWeekendStartHour());
-                row.put("weekend_end_hour", a.getWeekendEndHour());
-                availabilityPayload.add(row);
-            }
-            sendPayload("bubble_availability", availabilityPayload);
+            List<BubbleAvailabilityEntity> availabilities = bubbleClient.fetchAvailability().stream()
+                    .map(this::toAvailabilityEntity)
+                    .collect(Collectors.toList());
+            availabilityRepository.saveAll(availabilities);
             report.append("- Synced ").append(availabilities.size()).append(" availability records.\n");
 
             // 4. Wage Rates
-            List<BubbleWageRate> wages = bubbleClient.fetchWageRates();
-            List<Map<String, Object>> wagePayload = new ArrayList<>();
-            for (BubbleWageRate w : wages) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", w.getId());
-                row.put("company", w.getCompany());
-                row.put("rate", w.getRate());
-                row.put("user_id", w.getUser());
-                wagePayload.add(row);
-            }
-            sendPayload("bubble_wage_rates", wagePayload);
+            List<BubbleWageRateEntity> wages = bubbleClient.fetchWageRates().stream()
+                    .map(this::toWageRateEntity)
+                    .collect(Collectors.toList());
+            wageRateRepository.saveAll(wages);
             report.append("- Synced ").append(wages.size()).append(" wage rates.\n");
 
             // 5. Shifts
-            List<BubbleShift> shifts = bubbleClient.fetchShifts();
-            List<Map<String, Object>> shiftPayload = new ArrayList<>();
-            for (BubbleShift s : shifts) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("id", s.getId());
-                row.put("assigned_user", s.getAssignedUser());
-                row.put("start_time", s.getStartTime());
-                row.put("end_time", s.getEndTime());
-                row.put("notes", s.getNotes());
-                row.put("assigned_company", s.getAssignedCompany());
-                row.put("type", s.getType());
-                row.put("status", s.getStatus());
-                row.put("assigned_store", s.getAssignedStore());
-                shiftPayload.add(row);
-            }
-            sendPayload("bubble_shifts", shiftPayload);
+            List<BubbleShiftEntity> shifts = bubbleClient.fetchShifts().stream()
+                    .map(this::toShiftEntity)
+                    .collect(Collectors.toList());
+            shiftRepository.saveAll(shifts);
             report.append("- Synced ").append(shifts.size()).append(" shifts.\n");
 
             log.info("Bubble → PostgreSQL sync completed.");
@@ -159,18 +121,48 @@ public class BubbleSyncService {
         }
     }
 
-    private void sendPayload(String tableName, List<Map<String, Object>> payload) {
-        if (payload.isEmpty()) return;
+    private BubbleUserEntity toUserEntity(BubbleUser u) {
+        return new BubbleUserEntity(u.getId(), u.getName(), u.getRole(), u.getMaxHours(), u.getActive());
+    }
 
-        String url = String.format("%s/%s", supabaseUrl, tableName);
+    private BubbleStoreEntity toStoreEntity(BubbleStore s) {
+        return new BubbleStoreEntity(s.getId(), s.getName(), s.getCompany(), s.getAvailabilityId(), s.getIsDeleted());
+    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", supabaseApiKey);
-        headers.set("Authorization", "Bearer " + supabaseApiKey);
-        headers.set("Prefer", "resolution=merge-duplicates");
+    private BubbleAvailabilityEntity toAvailabilityEntity(BubbleAvailability a) {
+        String[] days = a.getAvailableDays() == null ? null : a.getAvailableDays().toArray(new String[0]);
+        return new BubbleAvailabilityEntity(
+                a.getId(), a.getThingType(), a.getThingId(), days,
+                a.getWorkdayStartHour(), a.getWorkdayEndHour(),
+                a.getWeekendStartHour(), a.getWeekendEndHour());
+    }
 
-        restTemplate.exchange(url, HttpMethod.POST,
-                new HttpEntity<>(payload, headers), String.class);
+    private BubbleWageRateEntity toWageRateEntity(BubbleWageRate w) {
+        return new BubbleWageRateEntity(w.getId(), w.getCompany(), w.getRate(), w.getUser());
+    }
+
+    private BubbleShiftEntity toShiftEntity(BubbleShift s) {
+        return new BubbleShiftEntity(
+                s.getId(), s.getAssignedUser(),
+                parseOffset(s.getStartTime()), parseOffset(s.getEndTime()),
+                s.getNotes(), s.getAssignedCompany(), s.getType(), s.getStatus(), s.getAssignedStore());
+    }
+
+    /** Parses an ISO-8601 timestamp string from Bubble into an OffsetDateTime, tolerating both
+     *  offset ("...+02:00") and instant ("...Z") forms. Returns null on missing/unparseable input. */
+    private OffsetDateTime parseOffset(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value);
+        } catch (Exception ignored) {
+            try {
+                return Instant.parse(value).atOffset(ZoneOffset.UTC);
+            } catch (Exception e) {
+                log.warn("Could not parse timestamp '{}', storing null", value);
+                return null;
+            }
+        }
     }
 }
