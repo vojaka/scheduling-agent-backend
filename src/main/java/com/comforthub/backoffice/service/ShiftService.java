@@ -21,12 +21,16 @@ import java.util.UUID;
  * Used both by the CRUD endpoints and by the schedule-commit dual-write path.
  *
  * Backoffice-created shifts are stamped with the caller's company so they stay
- * within the user's scope (see CurrentUserService).
+ * within the user's scope (see CurrentUserService). Deletes are soft — records
+ * are never physically removed.
  */
 @Service
 public class ShiftService {
 
     private static final Logger log = LoggerFactory.getLogger(ShiftService.class);
+
+    /** Status value marking a shift as soft-deleted. */
+    private static final String DELETED_STATUS = "Deleted";
 
     private final BubbleShiftRepository shiftRepository;
     private final CurrentUserService currentUserService;
@@ -61,13 +65,17 @@ public class ShiftService {
         });
     }
 
+    /**
+     * Soft delete: marks the shift status as Deleted rather than removing the row.
+     * Returns false if the shift does not exist.
+     */
     @Transactional
     public boolean delete(String id) {
-        if (!shiftRepository.existsById(id)) {
-            return false;
-        }
-        shiftRepository.deleteById(id);
-        return true;
+        return shiftRepository.findById(id).map(entity -> {
+            entity.setStatus(DELETED_STATUS);
+            shiftRepository.save(entity);
+            return true;
+        }).orElse(false);
     }
 
     @Transactional

@@ -101,7 +101,12 @@ public class ScheduleController {
     }
 
     @PostMapping("/generate")
-    public ResponseEntity<ScheduleGenerateResponse> generate(@RequestBody ScheduleGenerateRequest request) {
+    public ResponseEntity<?> generate(@RequestBody ScheduleGenerateRequest request) {
+        // Generating / committing schedules is an OWNER-only action.
+        if (!currentUserService.isOwner()) {
+            return forbidden("Only company owners can generate or commit schedules.");
+        }
+
         log.info("Schedule generation request. Prompt: {}, auto-commit: {}", request.getPrompt(), request.getCommit());
 
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
@@ -150,7 +155,12 @@ public class ScheduleController {
     }
 
     @PostMapping("/commit")
-    public ResponseEntity<Map<String, Object>> commit(@RequestBody List<BubbleShift> shifts) {
+    public ResponseEntity<?> commit(@RequestBody List<BubbleShift> shifts) {
+        // Committing schedules is an OWNER-only action.
+        if (!currentUserService.isOwner()) {
+            return forbidden("Only company owners can commit schedules.");
+        }
+
         log.info("Bulk commit of {} shifts to Bubble.", shifts != null ? shifts.size() : 0);
 
         if (shifts == null || shifts.isEmpty()) {
@@ -183,6 +193,11 @@ public class ScheduleController {
         result.put("failedCount", failureCount);
         result.put("createdIds", createdIds);
         return ResponseEntity.ok(result);
+    }
+
+    private ResponseEntity<Map<String, Object>> forbidden(String message) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Forbidden", "message", message));
     }
 
     @ExceptionHandler(GeminiUnavailableException.class)
