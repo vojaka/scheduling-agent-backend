@@ -34,4 +34,39 @@ public class CompanyController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.ok(Collections.emptyList()));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CompanyEntity> updateCompany(@PathVariable String id, @RequestBody CompanyEntity body) {
+        currentUserService.requireOwner();
+        Optional<String> companyIdOpt = currentUserService.currentCompanyId();
+        if (companyIdOpt.isEmpty() || !companyIdOpt.get().equals(id)) {
+            return ResponseEntity.status(403).build();
+        }
+        return companyRepository.findById(id)
+                .map(existing -> {
+                    if (body.getName() != null) {
+                        existing.setName(body.getName());
+                    }
+                    if (body.getRegCode() != null) {
+                        existing.setRegCode(body.getRegCode());
+                    }
+                    return ResponseEntity.ok(companyRepository.save(existing));
+                })
+                .orElse(ResponseEntity.<CompanyEntity>notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCompany(@PathVariable String id) {
+        currentUserService.requireOwner();
+        Optional<String> companyIdOpt = currentUserService.currentCompanyId();
+        if (companyIdOpt.isEmpty() || !companyIdOpt.get().equals(id)) {
+            return ResponseEntity.status(403).build();
+        }
+        Optional<CompanyEntity> companyOpt = companyRepository.findById(id);
+        Optional<ResponseEntity<Void>> responseOpt = companyOpt.map(existing -> {
+            companyRepository.delete(existing);
+            return ResponseEntity.<Void>ok().build();
+        });
+        return responseOpt.orElse(ResponseEntity.<Void>notFound().build());
+    }
 }
