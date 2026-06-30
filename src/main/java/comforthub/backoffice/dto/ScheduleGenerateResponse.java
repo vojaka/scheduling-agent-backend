@@ -1,4 +1,4 @@
-package com.example.scheduler.dto;
+package com.comforthub.backoffice.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
