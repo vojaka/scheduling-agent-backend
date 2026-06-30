@@ -8,7 +8,7 @@ RUN mvn clean package -DskipTests
 # Stage 2: Create the runtime image
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/scheduling-agent-backend-1.0.0.jar app.jar
+COPY --from=build /app/target/comforthub-backoffice-1.0.0.jar app.jar
 
 # Render exposes the port in the PORT environment variable
 ENV PORT=8080
