@@ -1,30 +1,30 @@
 -- =====================================================================
--- backfill-2-company_id.sql
+-- backfill-2-company_id.sql        *** usually NOT needed — see below ***
 -- Populate users.company_id (the data-boundary scoping key) from Bubble's
 -- "Representing a Company".
 --
--- WHY: every scoped read filters by company_id (shifts.assigned_company,
---      stores.company, users.company_id). A user with no company_id sees
---      nothing. This is the user's *data boundary*; their OWNER/WORKER
---      *role* is resolved separately via the companies.owners[]/workers[]
---      arrays (see backfill note + README).
+-- NOTE: the hourly Bubble sync now sets users.company_id automatically
+--       from the "Representing a Company" field (alias confirmed & wired in
+--       #64 — see BubbleUser.companyId / BubbleSyncService.upsertUser).
+--       Run this script ONLY to (a) seed company_id before the first sync,
+--       or (b) fix users left blank because their Bubble field is empty.
 --
--- WHEN: run ONCE, post-deploy, AFTER Flyway has migrated to v4, and after
---       backfill-1. Table is `users` (renamed from `bubble_users` by V3).
+-- WHY company_id matters: every scoped read filters by it
+--      (shifts.assigned_company, stores.company, users.company_id). A user
+--      with no company_id sees nothing. This is the user's *data boundary*;
+--      their OWNER/WORKER *role* is resolved separately via
+--      companies.owners[]/workers[] (keys "Owners"/"Workers (list)", #64).
+--
+-- WHEN: post-deploy, AFTER Flyway has migrated to v5, and after backfill-1.
+--       Table is `users` (renamed from `bubble_users` by V3).
 --
 -- SAFETY: additive UPDATEs only. Runs in a transaction; review, then COMMIT.
 --
--- +-- VERIFY BEFORE TRUSTING -------------------------------------------+
--- | The Bubble JSON key for "Representing a Company" is a GUESS. Fetch  |
--- | one real record:  GET {bubble}/obj/user/<id>  and confirm which of |
--- | these keys actually holds the company id, then use it below:        |
--- |   representing_a_company                                            |
--- |   representing_a_company_custom____merchant                         |
--- |   representing_a_company_custom_merchant                            |
--- |   company  |  company_custom____merchant                           |
--- | (mirrors BubbleUser.companyId — keep the two in sync.) The value is |
--- | a Bubble company text id and must match companies.id / a Bubble     |
--- | company _id.                                                        |
+-- +-- FIELD SOURCE (confirmed) ----------------------------------------+
+-- | The Bubble JSON key for "Representing a Company" is `Representing a |
+-- | Company` (confirmed in #64). Its value is a Bubble company text id  |
+-- | that must match companies.id (a Bubble company _id). If you re-export|
+-- | from Bubble, pull this field per user from GET /obj/user.           |
 -- +--------------------------------------------------------------------+
 -- =====================================================================
 
@@ -32,11 +32,11 @@ BEGIN;
 
 -- ---------------------------------------------------------------------
 -- OPTION A — bulk from a Bubble /user export (staging table)
--- Load (bubble_user_id, company_id) from the verified JSON field above.
+-- Load (bubble_id, company_id) from the "Representing a Company" field.
 -- ---------------------------------------------------------------------
 CREATE TEMP TABLE bubble_user_company (
     bubble_id  TEXT NOT NULL,   -- Bubble user _id  (matches users.bubble_id)
-    company_id TEXT NOT NULL    -- the VERIFIED "Representing a Company" value
+    company_id TEXT NOT NULL    -- the "Representing a Company" value
 ) ON COMMIT DROP;
 
 -- Load from your /obj/user export, e.g.

@@ -1,26 +1,26 @@
 -- =====================================================================
--- backfill-1-auth0_user_id.sql
+-- backfill-1-auth0_user_id.sql            *** REQUIRED post-deploy step ***
 -- Map each Auth0 login (JWT `sub`) to its synced user row.
 --
 -- WHY: CurrentUserService resolves the principal as
 --        JWT sub -> users.auth0_user_id -> users.company_id.
 --      Until auth0_user_id is set, NOTHING resolves: scoped reads return an
 --      empty list and OWNER-only actions return 403 (fail-safe).
+--      auth0_user_id is NEVER sourced from Bubble, so it can only be set here.
 --
--- WHEN: run ONCE, post-deploy, AFTER Flyway has migrated to v4.
+-- WHEN: run ONCE, post-deploy, AFTER Flyway has migrated to v5.
 --       Table is `users` (renamed from `bubble_users` by V3).
 --
 -- SAFETY: additive UPDATEs only — no deletes. Runs inside a transaction;
 --         review the verification SELECTs, then COMMIT (or ROLLBACK).
 --
--- +-- VERIFY BEFORE TRUSTING -------------------------------------------+
--- | The `sub` values are owned by Auth0, not Bubble. Pull them from the |
--- | Auth0 Management API:  GET /api/v2/users                            |
--- |   - sub   = the `user_id` field (e.g. "auth0|abc123",              |
--- |             "google-oauth2|...")  -- this is the JWT `sub`.         |
--- |   - email = the `email` field (the join key used by Option A).     |
--- | Confirm BOTH users.email and the Auth0 email are populated before  |
--- | running Option A; otherwise use Option B (explicit, no guessing).  |
+-- +-- FIELD SOURCES (confirmed) ---------------------------------------+
+-- | sub   = Auth0 Mgmt API GET /api/v2/users -> `user_id`             |
+-- |         (e.g. "auth0|abc123", "google-oauth2|...") = the JWT sub.  |
+-- | email = Auth0 `email`. The join key for Option A.                 |
+-- | users.email is auto-synced from Bubble (authentication.email.email,|
+-- | wired in #64), so Option A's email join works once the sync has    |
+-- | run. If emails are missing/ambiguous, use Option B.                |
 -- +--------------------------------------------------------------------+
 -- =====================================================================
 
@@ -49,7 +49,7 @@ WHERE  lower(u.email) = lower(m.email)
   AND  (u.auth0_user_id IS NULL OR u.auth0_user_id <> m.sub);
 
 -- ---------------------------------------------------------------------
--- OPTION B — explicit per-user mapping (safest; no alias/email guessing)
+-- OPTION B — explicit per-user mapping (safest; no email reliance)
 -- Map the Bubble user id (users.bubble_id) directly to its Auth0 sub.
 -- Use this when emails are missing/ambiguous.
 -- ---------------------------------------------------------------------
