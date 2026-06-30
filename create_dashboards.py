@@ -1,3 +1,4 @@
+import os
 import requests
 import sys
 import getpass
@@ -64,7 +65,7 @@ def main():
                     "port": 5432,
                     "dbname": "postgres",
                     "user": "postgres",
-                    "password": "comfort-hub-db-pass-2026",
+                    "password": os.environ.get("DB_PASSWORD", "postgres"),
                     "ssl": False
                 }
             }

@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: comfort-hub-db-pass-2026
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -25,10 +25,10 @@ services:
     ports:
       - "3001:3000"  # Exposed internally/externally for debugging if needed, but not required
     environment:
-      PGRST_DB_URI: postgres://postgres:comfort-hub-db-pass-2026@db:5432/postgres
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: comfort-hub-jwt-secret-key-2026-comfort-hub
+      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET:?set PGRST_JWT_SECRET in .env}
     depends_on:
       db:
         condition: service_healthy
@@ -41,18 +41,18 @@ services:
       - "8080:8080"
     environment:
       - SERVER_PORT=8080
-      - APP_API_KEY=my-comfort-hub-scheduling-key-2026
+      - APP_API_KEY=${APP_API_KEY:?set APP_API_KEY in .env}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL=gemini-3.1-flash-lite
       - BUBBLE_API_BASE_URL=https://comforthub.ee/version-test/api/1.1/obj
-      - BUBBLE_API_TOKEN=855ecbda56a81baf6e2e58d41b42cae0
+      - BUBBLE_API_TOKEN=${BUBBLE_API_TOKEN:?set BUBBLE_API_TOKEN in .env}
       - SUPABASE_API_URL=http://postgrest:3000
-      - SUPABASE_API_KEY=eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJyb2xlIjogImFub24ifQ.0JmpGhtOnZS97SBim31KtryNvQV4AQTgMjtHeOSATBc
+      - SUPABASE_API_KEY=${SUPABASE_API_KEY:-}
       - METABASE_SITE_URL=http://178.105.76.235:3000
-      - METABASE_EMBED_SECRET=fb836ffc841c2c31e21b714d3a0491950e181057476e4c70be6a32a67e415ef4
+      - METABASE_EMBED_SECRET=${METABASE_EMBED_SECRET:?set METABASE_EMBED_SECRET in .env}
       - DB_URL=jdbc:postgresql://db:5432/postgres
       - DB_USERNAME=postgres
-      - DB_PASSWORD=comfort-hub-db-pass-2026
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
       - MB_DB_DBNAME=postgres
       - MB_DB_PORT=5432
       - MB_DB_USER=postgres
-      - MB_DB_PASS=comfort-hub-db-pass-2026
+      - MB_DB_PASS=${POSTGRES_PASSWORD}
       - MB_DB_HOST=db
       - JAVA_OPTS=-Xmx1500m -Xms500m  # High memory allocation since we have 4GB RAM on VPS
     depends_on:
