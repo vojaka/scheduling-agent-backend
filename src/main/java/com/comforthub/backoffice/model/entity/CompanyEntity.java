@@ -24,6 +24,9 @@ public class CompanyEntity {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "reg_code")
+    private String regCode;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "owners", columnDefinition = "text[]")
     private String[] owners;
