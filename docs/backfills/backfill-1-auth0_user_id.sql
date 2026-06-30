@@ -35,11 +35,12 @@ CREATE TEMP TABLE auth0_user_map (
     email TEXT NOT NULL    -- Auth0 email (lower-cased on match below)
 ) ON COMMIT DROP;
 
--- Load rows from the Auth0 /api/v2/users export. Replace with your real data,
--- e.g. \copy auth0_user_map FROM 'auth0_users.csv' CSV HEADER
--- INSERT INTO auth0_user_map (sub, email) VALUES
---   ('auth0|abc123',         'owner@acme.example'),
---   ('google-oauth2|xyz789', 'worker@acme.example');
+INSERT INTO auth0_user_map (sub, email) VALUES
+  ('auth0|69e4a3fd7e454f6050793da2', 'wepaci4615@sixoplus.com'),
+  ('apple|001336.9d1b678ab6694610ae013dba28273df4.1953', 'kim.smirnov@gmail.com'),
+  ('apple|001336.f92179e12cfe4ba2932eb5f264276e99.2145', 'fjy7nyb8hp@privaterelay.appleid.com'),
+  ('auth0|6a3ae636ffaa52d5c965c64c', 'kim123@hormail.com');
+
 
 UPDATE users u
 SET    auth0_user_id = m.sub
