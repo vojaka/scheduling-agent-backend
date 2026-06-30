@@ -21,7 +21,7 @@ public class BubbleUser {
     private String name;
 
     @JsonProperty("role")
-    @JsonAlias({"role", "role_list_option___user_role", "primary_login_role_option___user_role"})
+    @JsonAlias({"role", "role_list_option___user_role", "primary_login_role_option___user_role", "Primary Login Role"})
     private Object roleObject;
 
     @JsonIgnore

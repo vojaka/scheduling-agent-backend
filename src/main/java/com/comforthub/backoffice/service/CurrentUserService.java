@@ -77,19 +77,20 @@ public class CurrentUserService {
             return Role.NONE;
         }
         String companyId = user.get().getCompanyId();
-        String bubbleUserId = user.get().getBubbleId();
-        if (companyId == null || companyId.isBlank() || bubbleUserId == null || bubbleUserId.isBlank()) {
+        if (companyId == null || companyId.isBlank()) {
             return Role.NONE;
         }
-        return companyRepository.findById(companyId).map(c -> {
-            if (arrayContains(c.getOwners(), bubbleUserId)) {
-                return Role.OWNER;
-            }
-            if (arrayContains(c.getWorkers(), bubbleUserId)) {
-                return Role.WORKER;
-            }
+        String userRole = user.get().getRole();
+        if (userRole == null) {
             return Role.NONE;
-        }).orElse(Role.NONE);
+        }
+        if ("Merchant".equalsIgnoreCase(userRole) || "Admin".equalsIgnoreCase(userRole)) {
+            return Role.OWNER;
+        }
+        if ("Worker".equalsIgnoreCase(userRole)) {
+            return Role.WORKER;
+        }
+        return Role.NONE;
     }
 
     public boolean isOwner() {
