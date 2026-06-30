@@ -22,18 +22,18 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Syncs data from the Bubble REST API into the PostgreSQL database via JPA/JDBC.
- * Runs automatically every hour and can be triggered manually via POST /api/schedule/sync.
+ * Syncs data from the Bubble REST API into PostgreSQL via JPA, upserting by the
+ * Bubble natural key (bubble_id) so re-runs update rather than duplicate rows
+ * under the new UUID surrogate primary keys.
  *
- * NOTE: This service will be removed once the React backoffice writes directly to PostgreSQL
- * and Bubble is decommissioned (Phase 5 of migration).
+ * Removed once the React backoffice writes directly to PostgreSQL and Bubble is
+ * decommissioned (Phase 5).
  */
 @Service
 public class BubbleSyncService {
@@ -75,42 +75,22 @@ public class BubbleSyncService {
     public synchronized String syncNow() {
         StringBuilder report = new StringBuilder("Sync report:\n");
         try {
-            log.info("Starting Bubble → PostgreSQL sync via JPA...");
+            int u = 0, s = 0, a = 0, w = 0, sh = 0;
 
-            // 1. Users
-            List<BubbleUserEntity> users = bubbleClient.fetchUsers().stream()
-                    .map(this::toUserEntity)
-                    .collect(Collectors.toList());
-            userRepository.saveAll(users);
-            report.append("- Synced ").append(users.size()).append(" users.\n");
+            for (BubbleUser x : bubbleClient.fetchUsers()) { upsertUser(x); u++; }
+            report.append("- Synced ").append(u).append(" users.\n");
 
-            // 2. Stores
-            List<BubbleStoreEntity> stores = bubbleClient.fetchStores().stream()
-                    .map(this::toStoreEntity)
-                    .collect(Collectors.toList());
-            storeRepository.saveAll(stores);
-            report.append("- Synced ").append(stores.size()).append(" stores.\n");
+            for (BubbleStore x : bubbleClient.fetchStores()) { upsertStore(x); s++; }
+            report.append("- Synced ").append(s).append(" stores.\n");
 
-            // 3. Availability
-            List<BubbleAvailabilityEntity> availabilities = bubbleClient.fetchAvailability().stream()
-                    .map(this::toAvailabilityEntity)
-                    .collect(Collectors.toList());
-            availabilityRepository.saveAll(availabilities);
-            report.append("- Synced ").append(availabilities.size()).append(" availability records.\n");
+            for (BubbleAvailability x : bubbleClient.fetchAvailability()) { upsertAvailability(x); a++; }
+            report.append("- Synced ").append(a).append(" availability records.\n");
 
-            // 4. Wage Rates
-            List<BubbleWageRateEntity> wages = bubbleClient.fetchWageRates().stream()
-                    .map(this::toWageRateEntity)
-                    .collect(Collectors.toList());
-            wageRateRepository.saveAll(wages);
-            report.append("- Synced ").append(wages.size()).append(" wage rates.\n");
+            for (BubbleWageRate x : bubbleClient.fetchWageRates()) { upsertWageRate(x); w++; }
+            report.append("- Synced ").append(w).append(" wage rates.\n");
 
-            // 5. Shifts
-            List<BubbleShiftEntity> shifts = bubbleClient.fetchShifts().stream()
-                    .map(this::toShiftEntity)
-                    .collect(Collectors.toList());
-            shiftRepository.saveAll(shifts);
-            report.append("- Synced ").append(shifts.size()).append(" shifts.\n");
+            for (BubbleShift x : bubbleClient.fetchShifts()) { upsertShift(x); sh++; }
+            report.append("- Synced ").append(sh).append(" shifts.\n");
 
             log.info("Bubble → PostgreSQL sync completed.");
             report.append("Status: Success");
@@ -121,35 +101,62 @@ public class BubbleSyncService {
         }
     }
 
-    private BubbleUserEntity toUserEntity(BubbleUser u) {
-        return new BubbleUserEntity(u.getId(), u.getName(), u.getRole(), u.getMaxHours(), u.getActive());
+    private void upsertUser(BubbleUser x) {
+        BubbleUserEntity e = userRepository.findByBubbleId(x.getId()).orElseGet(BubbleUserEntity::new);
+        e.setBubbleId(x.getId());
+        e.setFullName(x.getName());
+        e.setRole(x.getRole());
+        e.setMaxHours(x.getMaxHours() == null ? null : BigDecimal.valueOf(x.getMaxHours()));
+        e.setIsActive(x.getActive());
+        userRepository.save(e);
     }
 
-    private BubbleStoreEntity toStoreEntity(BubbleStore s) {
-        return new BubbleStoreEntity(s.getId(), s.getName(), s.getCompany(), s.getAvailabilityId(), s.getIsDeleted());
+    private void upsertStore(BubbleStore x) {
+        BubbleStoreEntity e = storeRepository.findByBubbleId(x.getId()).orElseGet(BubbleStoreEntity::new);
+        e.setBubbleId(x.getId());
+        e.setName(x.getName());
+        e.setCompany(x.getCompany());
+        e.setAvailabilityId(x.getAvailabilityId());
+        e.setIsDeleted(x.getIsDeleted());
+        storeRepository.save(e);
     }
 
-    private BubbleAvailabilityEntity toAvailabilityEntity(BubbleAvailability a) {
-        String[] days = a.getAvailableDays() == null ? null : a.getAvailableDays().toArray(new String[0]);
-        return new BubbleAvailabilityEntity(
-                a.getId(), a.getThingType(), a.getThingId(), days,
-                a.getWorkdayStartHour(), a.getWorkdayEndHour(),
-                a.getWeekendStartHour(), a.getWeekendEndHour());
+    private void upsertAvailability(BubbleAvailability x) {
+        BubbleAvailabilityEntity e = availabilityRepository.findByBubbleId(x.getId()).orElseGet(BubbleAvailabilityEntity::new);
+        e.setBubbleId(x.getId());
+        e.setThingType(x.getThingType());
+        e.setThingId(x.getThingId());
+        e.setAvailableDays(x.getAvailableDays() == null ? null : x.getAvailableDays().toArray(new String[0]));
+        e.setWorkdayStartHour(x.getWorkdayStartHour());
+        e.setWorkdayEndHour(x.getWorkdayEndHour());
+        e.setWeekendStartHour(x.getWeekendStartHour());
+        e.setWeekendEndHour(x.getWeekendEndHour());
+        availabilityRepository.save(e);
     }
 
-    private BubbleWageRateEntity toWageRateEntity(BubbleWageRate w) {
-        return new BubbleWageRateEntity(w.getId(), w.getCompany(), w.getRate(), w.getUser());
+    private void upsertWageRate(BubbleWageRate x) {
+        BubbleWageRateEntity e = wageRateRepository.findByBubbleId(x.getId()).orElseGet(BubbleWageRateEntity::new);
+        e.setBubbleId(x.getId());
+        e.setCompany(x.getCompany());
+        e.setRate(x.getRate());
+        e.setUserId(x.getUser());
+        wageRateRepository.save(e);
     }
 
-    private BubbleShiftEntity toShiftEntity(BubbleShift s) {
-        return new BubbleShiftEntity(
-                s.getId(), s.getAssignedUser(),
-                parseOffset(s.getStartTime()), parseOffset(s.getEndTime()),
-                s.getNotes(), s.getAssignedCompany(), s.getType(), s.getStatus(), s.getAssignedStore());
+    private void upsertShift(BubbleShift x) {
+        BubbleShiftEntity e = shiftRepository.findByBubbleId(x.getId()).orElseGet(BubbleShiftEntity::new);
+        e.setBubbleId(x.getId());
+        e.setAssignedUser(x.getAssignedUser());
+        e.setStartTime(parseOffset(x.getStartTime()));
+        e.setEndTime(parseOffset(x.getEndTime()));
+        e.setNotes(x.getNotes());
+        e.setAssignedCompany(x.getAssignedCompany());
+        e.setType(x.getType());
+        e.setStatus(x.getStatus());
+        e.setAssignedStore(x.getAssignedStore());
+        shiftRepository.save(e);
     }
 
-    /** Parses an ISO-8601 timestamp string from Bubble into an OffsetDateTime, tolerating both
-     *  offset ("...+02:00") and instant ("...Z") forms. Returns null on missing/unparseable input. */
     private OffsetDateTime parseOffset(String value) {
         if (value == null || value.isBlank()) {
             return null;

@@ -11,10 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * Backoffice write API for shifts, backed by PostgreSQL.
- * Secured by the JWT resource server (SecurityConfig) — all paths under /api require a valid token.
+ * Backoffice write API for shifts, backed by PostgreSQL. Shifts are addressed by
+ * their UUID id. Secured by the JWT resource server (SecurityConfig).
  */
 @RestController
 @RequestMapping("/api/shifts")
@@ -36,7 +37,7 @@ public class ShiftController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<BubbleShiftEntity> update(@PathVariable String id,
+    public ResponseEntity<BubbleShiftEntity> update(@PathVariable UUID id,
                                                     @Valid @RequestBody ShiftWriteRequest request) {
         return shiftService.update(id, request)
                 .map(ResponseEntity::ok)
@@ -44,7 +45,7 @@ public class ShiftController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
         return shiftService.delete(id)
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

@@ -1,13 +1,35 @@
 package com.comforthub.backoffice.model.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Entity @Table(name = "bubble_users") @Data @NoArgsConstructor @AllArgsConstructor
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Entity
+@Table(name = "users")
+@Data
+@NoArgsConstructor
 public class BubbleUserEntity {
-    @Id @Column(name = "id", nullable = false) private String id;
-    @Column(name = "name") private String name;
-    @Column(name = "role") private String role;
-    @Column(name = "max_hours") private Integer maxHours;
-    @Column(name = "active") private Boolean active;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false)
+    private UUID id;
+
+    @Column(name = "bubble_id", unique = true)
+    private String bubbleId;
+
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "role")
+    private String role;
+
+    @Column(name = "max_hours")
+    private BigDecimal maxHours;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
 }
