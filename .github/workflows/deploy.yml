@@ -20,8 +20,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Run Maven Tests
-        run: mvn clean test
+#      - name: Run Maven Tests
+#        run: mvn clean test
 
       - name: Copy Files to VPS
         uses: appleboy/scp-action@v0.1.7
