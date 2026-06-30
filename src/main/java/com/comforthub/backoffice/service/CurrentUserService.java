@@ -1,5 +1,6 @@
 package com.comforthub.backoffice.service;
 
+import com.comforthub.backoffice.exception.ForbiddenException;
 import com.comforthub.backoffice.model.entity.BubbleUserEntity;
 import com.comforthub.backoffice.repository.BubbleUserRepository;
 import com.comforthub.backoffice.repository.CompanyRepository;
@@ -86,6 +87,18 @@ public class CurrentUserService {
 
     public boolean isOwner() {
         return currentRole() == Role.OWNER;
+    }
+
+    /**
+     * Asserts the current user is the OWNER of their company, throwing
+     * {@link ForbiddenException} (HTTP 403) otherwise. Use to gate OWNER-only
+     * actions such as generating/committing schedules and managing workers.
+     * Fail-safe: an unresolved role (NONE) is treated as non-owner.
+     */
+    public void requireOwner() {
+        if (!isOwner()) {
+            throw new ForbiddenException("This action requires the OWNER role.");
+        }
     }
 
     private static boolean arrayContains(String[] arr, String value) {
