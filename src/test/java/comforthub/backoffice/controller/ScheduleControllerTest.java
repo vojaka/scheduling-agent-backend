@@ -1,17 +1,20 @@
-package com.example.scheduler.controller;
+package com.comforthub.backoffice.controller;
 
-import com.example.scheduler.client.BubbleClient;
-import com.example.scheduler.dto.ScheduleGenerateResponse;
-import com.example.scheduler.dto.ValidationReport;
-import com.example.scheduler.security.ApiKeyFilter;
-import com.example.scheduler.service.OrchestrationService;
+import com.comforthub.backoffice.client.BubbleClient;
+import com.comforthub.backoffice.dto.ScheduleGenerateResponse;
+import com.comforthub.backoffice.dto.ValidationReport;
+import com.comforthub.backoffice.exception.GeminiUnavailableException;
+import com.comforthub.backoffice.service.BubbleSyncService;
+import com.comforthub.backoffice.service.ScheduleOrchestrationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,16 +22,22 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ScheduleController.class)
-@Import(ApiKeyFilter.class)
+/**
+ * Controller slice test. Security (JWT) is exercised separately by SecurityConfig;
+ * here filters are disabled so the focus is on controller logic and error mapping.
+ */
+@WebMvcTest(controllers = ScheduleController.class,
+        excludeAutoConfiguration = {
+                SecurityAutoConfiguration.class,
+                OAuth2ResourceServerAutoConfiguration.class
+        })
+@AutoConfigureMockMvc(addFilters = false)
 @TestPropertySource(properties = {
-    "app.api-key=test-api-key-123",
-    "bubble.api.token=test-bubble-token"
+        "bubble.api.token=test-bubble-token"
 })
 class ScheduleControllerTest {
 
@@ -36,48 +45,28 @@ class ScheduleControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private OrchestrationService orchestrationService;
+    private ScheduleOrchestrationService orchestrationService;
 
     @MockBean
     private BubbleClient bubbleClient;
 
     @MockBean
-    private com.example.scheduler.service.SupabaseSyncService supabaseSyncService;
+    private BubbleSyncService bubbleSyncService;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @Test
-    void testGenerateWithoutApiKeyShouldReturn401() throws Exception {
-        mockMvc.perform(post("/api/schedule/generate")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"prompt\": \"Schedule standard week\"}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Unauthorized: Missing or invalid X-API-KEY header"));
-    }
-
-    @Test
-    void testGenerateWithInvalidApiKeyShouldReturn401() throws Exception {
-        mockMvc.perform(post("/api/schedule/generate")
-                        .header("X-API-KEY", "wrong-key")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"prompt\": \"Schedule standard week\"}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Unauthorized: Missing or invalid X-API-KEY header"));
-    }
-
-    @Test
-    void testGenerateWithValidApiKeyShouldReturn200() throws Exception {
+    void testGenerateReturns200() throws Exception {
         ScheduleGenerateResponse mockResponse = new ScheduleGenerateResponse(
                 Collections.emptyList(),
                 new ValidationReport(true, Collections.emptyList()),
                 Collections.singletonList("Testing trace log")
         );
 
-        Mockito.when(orchestrationService.generateSchedule(any(), any(), any(), any(), any(), any())).thenReturn(mockResponse);
+        Mockito.when(orchestrationService.generateSchedule(any())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/api/schedule/generate")
-                        .header("X-API-KEY", "test-api-key-123")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"prompt\": \"Schedule standard week\"}"))
                 .andExpect(status().isOk())
@@ -87,11 +76,10 @@ class ScheduleControllerTest {
 
     @Test
     void testGenerateWithGeminiUnavailableShouldReturn503() throws Exception {
-        Mockito.when(orchestrationService.generateSchedule(any(), any(), any(), any(), any(), any()))
-                .thenThrow(new com.example.scheduler.exception.GeminiUnavailableException("Gemini API is currently unavailable: 503 Service Unavailable"));
+        Mockito.when(orchestrationService.generateSchedule(any()))
+                .thenThrow(new GeminiUnavailableException("Gemini API is currently unavailable: 503 Service Unavailable"));
 
         mockMvc.perform(post("/api/schedule/generate")
-                        .header("X-API-KEY", "test-api-key-123")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"prompt\": \"Schedule standard week\"}"))
                 .andExpect(status().isServiceUnavailable())

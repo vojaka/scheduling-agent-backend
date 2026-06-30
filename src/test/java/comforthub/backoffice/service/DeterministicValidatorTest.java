@@ -1,9 +1,9 @@
-package com.example.scheduler.service;
+package com.comforthub.backoffice.service;
 
-import com.example.scheduler.dto.ValidationIssue;
-import com.example.scheduler.dto.ValidationReport;
-import com.example.scheduler.model.BubbleShift;
-import com.example.scheduler.model.BubbleUser;
+import com.comforthub.backoffice.dto.ValidationIssue;
+import com.comforthub.backoffice.dto.ValidationReport;
+import com.comforthub.backoffice.model.BubbleShift;
+import com.comforthub.backoffice.model.BubbleUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +28,7 @@ class DeterministicValidatorTest {
     @Test
     void testCompliantSchedule() {
         List<BubbleShift> shifts = new ArrayList<>();
-        
+
         // Tom: Monday 08:00 - 16:00 (8 hours)
         BubbleShift s1 = new BubbleShift("s1", "Tom", "2026-06-29T08:00:00Z", "2026-06-29T16:00:00Z", "Standard morning");
         shifts.add(s1);
@@ -45,7 +45,7 @@ class DeterministicValidatorTest {
     @Test
     void testShiftExceeding12Hours() {
         List<BubbleShift> shifts = new ArrayList<>();
-        
+
         // Tom: Monday 08:00 - 21:00 (13 hours) -> Violates Max Duration
         BubbleShift s1 = new BubbleShift("s1", "Tom", "2026-06-29T08:00:00Z", "2026-06-29T21:00:00Z", "Overtime shift");
         shifts.add(s1);
@@ -60,7 +60,7 @@ class DeterministicValidatorTest {
     @Test
     void testRestGapUnder11Hours() {
         List<BubbleShift> shifts = new ArrayList<>();
-        
+
         // Tom: Monday 08:00 - 18:00 (10 hours)
         BubbleShift s1 = new BubbleShift("s1", "Tom", "2026-06-29T08:00:00Z", "2026-06-29T18:00:00Z", "Day Shift");
         shifts.add(s1);
@@ -77,7 +77,7 @@ class DeterministicValidatorTest {
     @Test
     void testShiftsOverlap() {
         List<BubbleShift> shifts = new ArrayList<>();
-        
+
         // Tom: Monday 08:00 - 16:00
         BubbleShift s1 = new BubbleShift("s1", "Tom", "2026-06-29T08:00:00Z", "2026-06-29T16:00:00Z", "Shift A");
         shifts.add(s1);
@@ -94,7 +94,7 @@ class DeterministicValidatorTest {
     @Test
     void testWeeklyHoursExceededLimit() {
         List<BubbleShift> shifts = new ArrayList<>();
-        
+
         // Tom has a maxLimit of 40 hours. Let's assign him five 9-hour shifts = 45 hours
         for (int i = 0; i < 5; i++) {
             String day = "2026-07-0" + (1 + i);
