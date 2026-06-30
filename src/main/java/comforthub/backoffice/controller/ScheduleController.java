@@ -101,9 +101,7 @@ public class ScheduleController {
         log.info("Schedule generation request. Prompt: {}, auto-commit: {}", request.getPrompt(), request.getCommit());
 
         String prompt = request.getPrompt() != null ? request.getPrompt() : "";
-        ScheduleGenerateResponse response = orchestrationService.generateSchedule(
-                prompt, request.getMonth(), request.getCompany(), request.getWorkers(),
-                request.getBufferBeforeMinutes(), request.getBufferAfterMinutes());
+        ScheduleGenerateResponse response = orchestrationService.generateSchedule(prompt);
 
         if (Boolean.TRUE.equals(request.getCommit())) {
             if (response.getValidationReport() != null && response.getValidationReport().isValid()
