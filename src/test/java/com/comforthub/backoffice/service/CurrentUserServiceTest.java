@@ -57,28 +57,19 @@ class CurrentUserServiceTest {
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
     }
 
-    private BubbleUserEntity user(String bubbleId, String companyId) {
+    private BubbleUserEntity user(String bubbleId, String companyId, String role) {
         BubbleUserEntity u = new BubbleUserEntity();
         u.setBubbleId(bubbleId);
         u.setCompanyId(companyId);
+        u.setRole(role);
         return u;
-    }
-
-    private CompanyEntity company(String id, String[] owners, String[] workers) {
-        CompanyEntity c = new CompanyEntity();
-        c.setId(id);
-        c.setOwners(owners);
-        c.setWorkers(workers);
-        return c;
     }
 
     @Test
     void ownerResolvesToOwnerRole_andRequireOwnerPasses() {
         authenticateAs("auth0|owner");
         when(userRepository.findByAuth0UserId("auth0|owner"))
-                .thenReturn(Optional.of(user("u-owner", "c1")));
-        when(companyRepository.findById("c1"))
-                .thenReturn(Optional.of(company("c1", new String[]{"u-owner"}, new String[]{"u-worker"})));
+                .thenReturn(Optional.of(user("u-owner", "c1", "Merchant")));
 
         CurrentUserService svc = service();
 
@@ -91,9 +82,7 @@ class CurrentUserServiceTest {
     void workerResolvesToWorkerRole_andRequireOwnerForbids() {
         authenticateAs("auth0|worker");
         when(userRepository.findByAuth0UserId("auth0|worker"))
-                .thenReturn(Optional.of(user("u-worker", "c1")));
-        when(companyRepository.findById("c1"))
-                .thenReturn(Optional.of(company("c1", new String[]{"u-owner"}, new String[]{"u-worker"})));
+                .thenReturn(Optional.of(user("u-worker", "c1", "Worker")));
 
         CurrentUserService svc = service();
 
@@ -115,11 +104,10 @@ class CurrentUserServiceTest {
     }
 
     @Test
-    void userWithMissingCompanyResolvesToNone_andRequireOwnerForbids_failSafe() {
+    void userWithBlankCompanyResolvesToNone_andRequireOwnerForbids_failSafe() {
         authenticateAs("auth0|orphan");
         when(userRepository.findByAuth0UserId("auth0|orphan"))
-                .thenReturn(Optional.of(user("u-orphan", "c-missing")));
-        when(companyRepository.findById("c-missing")).thenReturn(Optional.empty());
+                .thenReturn(Optional.of(user("u-orphan", "", "Merchant")));
 
         CurrentUserService svc = service();
 
@@ -128,12 +116,10 @@ class CurrentUserServiceTest {
     }
 
     @Test
-    void userInNeitherListResolvesToNone_andRequireOwnerForbids_failSafe() {
+    void userWithNullRoleResolvesToNone_andRequireOwnerForbids_failSafe() {
         authenticateAs("auth0|bystander");
         when(userRepository.findByAuth0UserId("auth0|bystander"))
-                .thenReturn(Optional.of(user("u-bystander", "c1")));
-        when(companyRepository.findById("c1"))
-                .thenReturn(Optional.of(company("c1", new String[]{"u-owner"}, new String[]{"u-worker"})));
+                .thenReturn(Optional.of(user("u-bystander", "c1", null)));
 
         CurrentUserService svc = service();
 
@@ -143,7 +129,6 @@ class CurrentUserServiceTest {
 
     @Test
     void unauthenticatedResolvesToNone_andRequireOwnerForbids_failSafe() {
-        // No authentication in the security context.
         CurrentUserService svc = service();
 
         assertThat(svc.currentSub()).isNull();
