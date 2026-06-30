@@ -11,11 +11,13 @@ import com.comforthub.backoffice.model.entity.BubbleShiftEntity;
 import com.comforthub.backoffice.model.entity.BubbleStoreEntity;
 import com.comforthub.backoffice.model.entity.BubbleUserEntity;
 import com.comforthub.backoffice.model.entity.BubbleWageRateEntity;
+import com.comforthub.backoffice.model.entity.CompanyEntity;
 import com.comforthub.backoffice.repository.BubbleAvailabilityRepository;
 import com.comforthub.backoffice.repository.BubbleShiftRepository;
 import com.comforthub.backoffice.repository.BubbleStoreRepository;
 import com.comforthub.backoffice.repository.BubbleUserRepository;
 import com.comforthub.backoffice.repository.BubbleWageRateRepository;
+import com.comforthub.backoffice.repository.CompanyRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,6 +28,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Syncs data from the Bubble REST API into PostgreSQL via JPA, upserting by the
@@ -46,19 +51,22 @@ public class BubbleSyncService {
     private final BubbleAvailabilityRepository availabilityRepository;
     private final BubbleWageRateRepository wageRateRepository;
     private final BubbleShiftRepository shiftRepository;
+    private final CompanyRepository companyRepository;
 
     public BubbleSyncService(BubbleClient bubbleClient,
                              BubbleUserRepository userRepository,
                              BubbleStoreRepository storeRepository,
                              BubbleAvailabilityRepository availabilityRepository,
                              BubbleWageRateRepository wageRateRepository,
-                             BubbleShiftRepository shiftRepository) {
+                             BubbleShiftRepository shiftRepository,
+                             CompanyRepository companyRepository) {
         this.bubbleClient = bubbleClient;
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
         this.availabilityRepository = availabilityRepository;
         this.wageRateRepository = wageRateRepository;
         this.shiftRepository = shiftRepository;
+        this.companyRepository = companyRepository;
     }
 
     @Scheduled(cron = "0 0 * * * *")
@@ -93,6 +101,10 @@ public class BubbleSyncService {
             for (BubbleShift x : bubbleClient.fetchShifts()) { upsertShift(x); sh++; }
             report.append("- Synced ").append(sh).append(" shifts.\n");
 
+            int c = 0;
+            for (Map<String, Object> x : bubbleClient.fetchCompanies()) { upsertCompany(x); c++; }
+            report.append("- Synced ").append(c).append(" companies.\n");
+
             log.info("Bubble → PostgreSQL sync completed.");
             report.append("Status: Success");
             return report.toString();
@@ -101,7 +113,7 @@ public class BubbleSyncService {
             return "Sync failed: " + e.getMessage();
         }
     }
-
+    /**
      * Load-or-create by bubble_id so the UUID PK is preserved across runs and the
      * scoping columns (auth0_user_id, and any backfilled company_id) survive the
      * hourly sync. company_id is updated only when Bubble actually provides it.
@@ -164,6 +176,42 @@ public class BubbleSyncService {
         e.setStatus(x.getStatus());
         e.setAssignedStore(x.getAssignedStore());
         shiftRepository.save(e);
+    }
+
+    private void upsertCompany(Map<String, Object> m) {
+        String bubbleId = asString(m.get("_id"));
+        if (bubbleId == null || bubbleId.isBlank()) {
+            return;
+        }
+        CompanyEntity e = companyRepository.findById(bubbleId).orElseGet(CompanyEntity::new);
+        e.setId(bubbleId);
+        e.setName(asString(firstNonNull(m.get("name"), m.get("name_text"))));
+        e.setOwners(asStringArray(firstNonNull(
+                m.get("owners"), m.get("list_owners"), m.get("owners_list_user"), m.get("owners_list_users"))));
+        e.setWorkers(asStringArray(firstNonNull(
+                m.get("workers"), m.get("list_workers"), m.get("workers_list_user"), m.get("workers_list_users"))));
+        companyRepository.save(e);
+    }
+
+    private static String asString(Object o) {
+        return o == null ? null : o.toString();
+    }
+
+    private static Object firstNonNull(Object... os) {
+        for (Object o : os) {
+            if (o != null) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    private static String[] asStringArray(Object o) {
+        if (o instanceof Collection) {
+            Collection<?> c = (Collection<?>) o;
+            return c.stream().filter(Objects::nonNull).map(Object::toString).toArray(String[]::new);
+        }
+        return o == null ? new String[0] : new String[]{o.toString()};
     }
 
     private OffsetDateTime parseOffset(String value) {
