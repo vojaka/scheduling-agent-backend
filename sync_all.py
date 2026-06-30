@@ -7,8 +7,8 @@ from psycopg2.extras import execute_values
 
 # Configurations
 BUBBLE_BASE_URL = os.environ.get("BUBBLE_API_BASE_URL", "https://comforthub.ee/version-test/api/1.1/obj")
-BUBBLE_TOKEN = os.environ.get("BUBBLE_API_TOKEN", "855ecbda56a81baf6e2e58d41b42cae0")
-DB_URI = os.environ.get("DB_URI", "postgres://postgres:comfort-hub-db-pass-2026@db:5432/postgres")
+BUBBLE_TOKEN = os.environ.get("BUBBLE_API_TOKEN", "default-bubble-token")
+DB_URI = os.environ.get("DB_URI", "postgres://postgres:postgres@localhost:5432/postgres")
 
 TABLES_TO_SYNC = [
     'cartitem', 'mainproduct', 'company', 'address', 'bankaccounts', 'brand',
