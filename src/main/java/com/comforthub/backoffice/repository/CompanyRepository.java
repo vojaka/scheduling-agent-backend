@@ -11,6 +11,6 @@ import java.util.List;
 @Repository
 public interface CompanyRepository extends JpaRepository<CompanyEntity, String> {
 
-    @Query(value = "SELECT * FROM companies WHERE :bubbleId = ANY(owners) OR :bubbleId = ANY(workers)", nativeQuery = true)
+    @Query(value = "SELECT * FROM companies WHERE (is_deleted IS NOT TRUE) AND (:bubbleId = ANY(owners) OR :bubbleId = ANY(workers))", nativeQuery = true)
     List<CompanyEntity> findAvailableCompanies(@Param("bubbleId") String bubbleId);
 }

@@ -34,4 +34,16 @@ public class CompanyEntity {
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "workers", columnDefinition = "text[]")
     private String[] workers;
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
+
+    public CompanyEntity(String id, String name, String regCode, String[] owners, String[] workers) {
+        this.id = id;
+        this.name = name;
+        this.regCode = regCode;
+        this.owners = owners;
+        this.workers = workers;
+        this.isDeleted = false;
+    }
 }

@@ -75,7 +75,8 @@ class MeControllerTest {
                         .with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("c1"))
-                .andExpect(jsonPath("$[0].name").value("Company One"));
+                .andExpect(jsonPath("$[0].name").value("Company One"))
+                .andExpect(jsonPath("$[0].role").value("OWNER"));
     }
 
     @Test

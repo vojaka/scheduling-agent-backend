@@ -45,7 +45,7 @@ public class MeController {
     }
 
     @GetMapping("/me/companies")
-    public ResponseEntity<List<CompanyEntity>> getAvailableCompanies() {
+    public ResponseEntity<List<AvailableCompanyResponse>> getAvailableCompanies() {
         Optional<BubbleUserEntity> userOpt = currentUserService.currentUser();
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(401).build();
@@ -54,7 +54,15 @@ public class MeController {
         if (bubbleId == null || bubbleId.isBlank()) {
             return ResponseEntity.ok(Collections.emptyList());
         }
-        return ResponseEntity.ok(companyRepository.findAvailableCompanies(bubbleId));
+        List<CompanyEntity> companies = companyRepository.findAvailableCompanies(bubbleId);
+        List<AvailableCompanyResponse> response = companies.stream()
+                .map(c -> {
+                    boolean isOwner = arrayContains(c.getOwners(), bubbleId);
+                    String role = isOwner ? "OWNER" : "WORKER";
+                    return new AvailableCompanyResponse(c.getId(), c.getName(), c.getRegCode(), role);
+                })
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/me/company")
@@ -116,4 +124,7 @@ public class MeController {
 
     /** Request payload to switch represented company */
     public record SelectCompanyRequest(String companyId) {}
+
+    /** Response for listing available companies with roles */
+    public record AvailableCompanyResponse(String id, String name, String regCode, String role) {}
 }

@@ -191,11 +191,22 @@ public class BubbleSyncService {
                 m.get("Owners"), m.get("owners"), m.get("list_owners"), m.get("owners_list_user"), m.get("owners_list_users"))));
         e.setWorkers(asStringArray(firstNonNull(
                 m.get("Workers (list)"), m.get("workers"), m.get("list_workers"), m.get("workers_list_user"), m.get("workers_list_users"))));
+        e.setIsDeleted(asBoolean(firstNonNull(m.get("isDeleted"), m.get("is_deleted"), m.get("Deleted"))));
         companyRepository.save(e);
     }
 
     private static String asString(Object o) {
         return o == null ? null : o.toString();
+    }
+
+    private static Boolean asBoolean(Object o) {
+        if (o == null) {
+            return false;
+        }
+        if (o instanceof Boolean b) {
+            return b;
+        }
+        return Boolean.valueOf(o.toString());
     }
 
     private static Object firstNonNull(Object... os) {
