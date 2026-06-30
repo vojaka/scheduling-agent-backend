@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,31 +14,28 @@ import java.util.Map;
 
 /**
  * Translates between the backoffice {@link OrderDto} (the UI contract) and the
- * Bubble {@code order} object. <b>This is the single place that knows Bubble's
- * field aliases</b>, so adapting to schema changes — or replicating this
- * pattern to the other controllers — touches only this file.
+ * Bubble {@code order} object. This is the single place that knows Bubble's
+ * field keys, so adapting to schema changes touches only this file.
  *
- * <h2>⚠️ Field aliases are INFERRED — verify before merging to main</h2>
- * Bubble couldn't be reached to read the real swagger (this session's egress
- * policy blocks {@code comforthub.ee}, plus a Bubble incident). The aliases
- * below are therefore <b>best-effort inferences</b> from this repo's established
- * convention (see {@code BubbleShift} / {@code sync.py}):
- * <pre>
- *   &lt;field&gt;_&lt;type&gt;                e.g. notes_text, end_time_date, rate_number
- *   &lt;field&gt;_option_&lt;optionset&gt;     e.g. status_option_shift_approval_status
- *   &lt;field&gt;_custom_&lt;datatype&gt;       e.g. assigned_store_custom_store
- *   &lt;field&gt;_custom____&lt;datatype&gt;    e.g. assigned_company_custom____merchant
- * </pre>
- * <b>Merging to {@code main} deploys to prod</b>, so confirm every {@code F_*}
- * value and the six status display strings against the live schema first:
- * <pre>
- *   curl -s -H "Authorization: Bearer $TOKEN" \
- *     https://comforthub.ee/version-test/api/1.1/meta/swagger.json \
- *     | jq '.definitions.order.properties | keys'
- * </pre>
- * Read paths try several candidate keys (alias + display name) so display
- * degrades gracefully; the company constraint and write payloads use the exact
- * key, so those are the critical ones to confirm.
+ * <p>Field keys below are the <b>real keys confirmed from live Bubble {@code
+ * order} records</b> — this app's Data API exposes display-name keys (e.g.
+ * {@code "Merchant"}, {@code "S - Order Progress Status"}), and constraints use
+ * the same keys. The six status values come from the {@code Order Progress
+ * Status} option set.
+ *
+ * <p><b>Schema gaps:</b> the Bubble {@code order} has no equivalent of several
+ * former {@code OrderEntity} fields, so they are intentionally unmapped (left
+ * null in the DTO) and never sent in filters or writes:
+ * <ul>
+ *   <li>order number — no field</li>
+ *   <li>customer name — only a {@code Customer (Individual)} reference; the name
+ *       lives on the linked Individual record (would need a join — follow-up)</li>
+ *   <li>assigned worker — no field on the order</li>
+ *   <li>ready-by date — no field</li>
+ *   <li>notes — no field</li>
+ * </ul>
+ * The {@code GET} filters for worker / order-number / customer-name are
+ * therefore accepted but ignored (they cannot be expressed against this schema).
  */
 @Component
 public class OrderBubbleMapper {
@@ -45,82 +43,28 @@ public class OrderBubbleMapper {
     /** Bubble Data API object type. */
     public static final String TYPE = "order";
 
-    // ====================================================================
-    // FIELD ALIASES — ⚠️ INFERRED from convention; verify before merge→deploy.
-    // ====================================================================
-
-    /** Owning merchant/company link. CRITICAL: used for the scope constraint.
-     *  Inferred from wagerate's "company_custom____merchant" (Merchant refs use
-     *  the 4-underscore form across shift/store/user/wagerate). */
-    static final String F_COMPANY = "company_custom____merchant";
-
-    /** Order number text. Inferred "<field>_text" form; alt: "order_number_text". */
-    static final String F_ORDER_NR = "order_nr_text";
-
-    /** Customer display name (text). Alt: "client_name_text". */
-    static final String F_CUSTOMER_NAME = "customer_name_text";
-
-    /** Customer record link (User ref). Alt: "customer_custom_individual". */
-    static final String F_CUSTOMER = "customer_user";
-
-    /** Store link. Inferred from shift's "assigned_store_custom_store". */
-    static final String F_STORE = "store_custom_store";
-
-    /** Order type option set. Inferred from "type_option_shift_type"; alt: text. */
-    static final String F_TYPE = "type_option_order_type";
-
-    /** Order amount/total (number). Alt: "total_number" / "total_amount_number". */
-    static final String F_AMOUNT = "amount_number";
-
-    /** Payment status option set. Alt: "payment_status_text". */
-    static final String F_PAYMENT_STATUS = "payment_status_option_payment_status";
-
-    /** Kanban/fulfilment status option set. Inferred from
-     *  "status_option_shift_approval_status"; option set assumed "order_status". */
-    static final String F_STATUS = "status_option_order_status";
-
-    /** Assigned worker link (User ref). Alt: "assigned_to_user" / "assigned_user_user". */
-    static final String F_ASSIGNED_TO = "assigned_worker_user";
-
-    /** Ready-by date. Alt: "ready_at_date". */
-    static final String F_READY_BY = "ready_by_date";
-
-    /** Free-text notes. Matches shift's "notes_text". */
-    static final String F_NOTES = "notes_text";
+    // ===== Real Bubble field keys (confirmed from live order records) =====
+    static final String F_COMPANY        = "Merchant";                  // owning merchant — scope key
+    static final String F_STORE          = "Store";
+    static final String F_CUSTOMER       = "Customer (Individual)";
+    static final String F_TYPE           = "Type";
+    static final String F_AMOUNT         = "Total W VAT Order Amount";
+    static final String F_PAYMENT_STATUS = "S - Order Payment Status";
+    static final String F_STATUS         = "S - Order Progress Status";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
 
-    // Read-side candidates: try the (placeholder) alias, common display names and
-    // alias variants. Reads still work once F_* are filled; the extra candidates
-    // make display resilient to small alias differences. Order = priority.
-    private static final String[] R_COMPANY      = {F_COMPANY, "Company", "company_custom____merchant", "company_custom____company"};
-    private static final String[] R_ORDER_NR     = {F_ORDER_NR, "Order nr", "order_number_text"};
-    private static final String[] R_CUSTOMER_NAME= {F_CUSTOMER_NAME, "Customer Name", "client_name_text"};
-    private static final String[] R_CUSTOMER     = {F_CUSTOMER, "Customer", "customer_custom_individual"};
-    private static final String[] R_STORE        = {F_STORE, "Store", "Assigned Store", "store_custom_store"};
-    private static final String[] R_TYPE         = {F_TYPE, "Type"};
-    private static final String[] R_AMOUNT       = {F_AMOUNT, "Amount", "Total", "total_number", "total_amount_number"};
-    private static final String[] R_PAYMENT      = {F_PAYMENT_STATUS, "Payment Status", "payment_status_text"};
-    private static final String[] R_STATUS       = {F_STATUS, "Status", "status_option_order_status"};
-    private static final String[] R_ASSIGNED     = {F_ASSIGNED_TO, "Assigned Worker", "assigned_to_user"};
-    private static final String[] R_READY_BY     = {F_READY_BY, "Ready By", "ready_at_date"};
-    private static final String[] R_NOTES        = {F_NOTES, "notes", "Notes"};
-    private static final String[] R_CREATED      = {"Created Date", "created_date"};
-    private static final String[] R_MODIFIED     = {"Modified Date", "modified_date"};
-
-    // ====================================================================
-    // STATUS MAPPING — kanban key (UI) <-> Bubble status option display value.
-    // ⚠️ Values derived by title-casing the kanban keys; confirm exact Bubble
-    // wording (capitalisation/spacing) against the order status option set.
-    // ====================================================================
+    // ===== Status: kanban key (UI) <-> "Order Progress Status" option value.
+    // All six confirmed from the Bubble option set (exact casing matters for
+    // writes; reads are normalised, see statusFromBubble). =====
     private static final Map<String, String> STATUS_TO_BUBBLE = new LinkedHashMap<>();
     static {
         STATUS_TO_BUBBLE.put("not_started", "Not started");
         STATUS_TO_BUBBLE.put("planned", "Planned");
-        STATUS_TO_BUBBLE.put("preparation_in_progress", "Preparation in progress");
-        STATUS_TO_BUBBLE.put("ready_for_pickup", "Ready for pickup");
-        STATUS_TO_BUBBLE.put("courier_assigned", "Courier assigned");
+        STATUS_TO_BUBBLE.put("preparation_in_progress", "Preparation In progress");
+        STATUS_TO_BUBBLE.put("ready_for_pickup", "Ready for PickUp");
+        STATUS_TO_BUBBLE.put("courier_assigned", "Courier Assigned");
         STATUS_TO_BUBBLE.put("completed", "Completed");
     }
 
@@ -138,20 +82,17 @@ public class OrderBubbleMapper {
         String id = readString(r, "_id");
         dto.setId(id);
         dto.setBubbleId(id);
-        dto.setCompanyId(readString(r, R_COMPANY));
-        dto.setStoreId(readString(r, R_STORE));
-        dto.setOrderNr(readString(r, R_ORDER_NR));
-        dto.setCustomerName(readString(r, R_CUSTOMER_NAME));
-        dto.setCustomerId(readString(r, R_CUSTOMER));
-        dto.setType(readString(r, R_TYPE));
-        dto.setAmount(readBigDecimal(r, R_AMOUNT));
-        dto.setPaymentStatus(readString(r, R_PAYMENT));
-        dto.setStatus(statusFromBubble(readString(r, R_STATUS)));
-        dto.setAssignedTo(readString(r, R_ASSIGNED));
-        dto.setReadyBy(readString(r, R_READY_BY));
-        dto.setNotes(readString(r, R_NOTES));
-        dto.setCreatedAt(readString(r, R_CREATED));
-        dto.setUpdatedAt(readString(r, R_MODIFIED));
+        dto.setCompanyId(readString(r, F_COMPANY));
+        dto.setStoreId(readString(r, F_STORE));
+        dto.setCustomerId(readString(r, F_CUSTOMER));
+        dto.setType(readString(r, F_TYPE));
+        dto.setAmount(readBigDecimal(r, F_AMOUNT));
+        dto.setPaymentStatus(readString(r, F_PAYMENT_STATUS));
+        dto.setStatus(statusFromBubble(readString(r, F_STATUS)));
+        dto.setCreatedAt(readInstant(r, "Created Date"));
+        dto.setUpdatedAt(readInstant(r, "Modified Date"));
+        // Unmapped on the Bubble order (see class doc): orderNr, customerName,
+        // assignedTo, readyBy, notes -> left null.
         return dto;
     }
 
@@ -178,8 +119,9 @@ public class OrderBubbleMapper {
     }
 
     /**
-     * Bubble constraints JSON scoping to {@code companyId} plus the optional
-     * UI filters. Always company-scoped; never returns cross-company rows.
+     * Bubble constraints JSON scoping to {@code companyId} (the merchant) plus
+     * the optional store filter. Worker / order-number / customer-name filters
+     * are not expressible against the Bubble order schema and are ignored.
      */
     public String buildConstraints(String companyId, String storeId, String assignedTo,
                                    String orderNr, String customer) {
@@ -188,15 +130,6 @@ public class OrderBubbleMapper {
         if (hasText(storeId)) {
             constraints.add(constraint(F_STORE, "equals", storeId));
         }
-        if (hasText(assignedTo)) {
-            constraints.add(constraint(F_ASSIGNED_TO, "equals", assignedTo));
-        }
-        if (hasText(orderNr)) {
-            constraints.add(constraint(F_ORDER_NR, "text contains", orderNr));
-        }
-        if (hasText(customer)) {
-            constraints.add(constraint(F_CUSTOMER_NAME, "text contains", customer));
-        }
         try {
             return objectMapper.writeValueAsString(constraints);
         } catch (JsonProcessingException e) {
@@ -204,40 +137,28 @@ public class OrderBubbleMapper {
         }
     }
 
-    /** Body for POST /obj/order — company-scoped; only non-null fields are sent. */
+    /** Body for POST /obj/order — company-scoped; only mapped, non-null fields. */
     public Map<String, Object> toCreateBody(OrderDto dto, String companyId) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(F_COMPANY, companyId);
-        putIfPresent(body, F_ORDER_NR, dto.getOrderNr());
-        putIfPresent(body, F_CUSTOMER_NAME, dto.getCustomerName());
-        putIfPresent(body, F_CUSTOMER, dto.getCustomerId());
         putIfPresent(body, F_STORE, dto.getStoreId());
+        putIfPresent(body, F_CUSTOMER, dto.getCustomerId());
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_AMOUNT, dto.getAmount());
         putIfPresent(body, F_PAYMENT_STATUS, dto.getPaymentStatus());
-        putIfPresent(body, F_ASSIGNED_TO, dto.getAssignedTo());
-        putIfPresent(body, F_READY_BY, dto.getReadyBy());
-        putIfPresent(body, F_NOTES, dto.getNotes());
         String status = dto.getStatus() != null ? dto.getStatus() : "not_started";
         body.put(F_STATUS, statusToBubble(status));
         return body;
     }
 
-    /**
-     * Partial body for PATCH /obj/order/{id} — mirrors the old PUT semantics
-     * (customer, store, type, amount, payment, assignee, readyBy, notes;
-     * order number, status and company are not changed here).
-     */
+    /** Partial body for PATCH /obj/order/{id} — only mapped, non-null fields. */
     public Map<String, Object> toUpdateBody(OrderDto dto) {
         Map<String, Object> body = new LinkedHashMap<>();
-        putIfPresent(body, F_CUSTOMER_NAME, dto.getCustomerName());
         putIfPresent(body, F_STORE, dto.getStoreId());
+        putIfPresent(body, F_CUSTOMER, dto.getCustomerId());
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_AMOUNT, dto.getAmount());
         putIfPresent(body, F_PAYMENT_STATUS, dto.getPaymentStatus());
-        putIfPresent(body, F_ASSIGNED_TO, dto.getAssignedTo());
-        putIfPresent(body, F_READY_BY, dto.getReadyBy());
-        putIfPresent(body, F_NOTES, dto.getNotes());
         return body;
     }
 
@@ -248,9 +169,9 @@ public class OrderBubbleMapper {
         return body;
     }
 
-    /** The company a Bubble record belongs to (for ownership checks). */
+    /** The merchant a Bubble record belongs to (for ownership checks). */
     public String companyOf(Map<String, Object> record) {
-        return readString(record, R_COMPANY);
+        return readString(record, F_COMPANY);
     }
 
     // --------------------------------------------------------------- helpers
@@ -269,24 +190,20 @@ public class OrderBubbleMapper {
         }
     }
 
-    private static String readString(Map<String, Object> r, String... keys) {
+    private static String readString(Map<String, Object> r, String key) {
         if (r == null) {
             return null;
         }
-        for (String k : keys) {
-            Object v = r.get(k);
-            if (v != null) {
-                String s = String.valueOf(v);
-                if (!s.isBlank()) {
-                    return s;
-                }
-            }
+        Object v = r.get(key);
+        if (v == null) {
+            return null;
         }
-        return null;
+        String s = String.valueOf(v);
+        return s.isBlank() ? null : s;
     }
 
-    private static BigDecimal readBigDecimal(Map<String, Object> r, String... keys) {
-        String s = readString(r, keys);
+    private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
+        String s = readString(r, key);
         if (s == null) {
             return null;
         }
@@ -295,6 +212,22 @@ public class OrderBubbleMapper {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */
+    private static String readInstant(Map<String, Object> r, String key) {
+        if (r == null) {
+            return null;
+        }
+        Object v = r.get(key);
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number n) {
+            return Instant.ofEpochMilli(n.longValue()).toString();
+        }
+        String s = String.valueOf(v);
+        return s.isBlank() ? null : s;
     }
 
     private static boolean hasText(String s) {
