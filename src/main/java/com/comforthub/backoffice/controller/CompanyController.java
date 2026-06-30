@@ -31,6 +31,7 @@ public class CompanyController {
         }
         return companyRepository.findById(companyIdOpt.get())
                 .filter(c -> !Boolean.TRUE.equals(c.getIsDeleted()))
+                .filter(c -> c.getName() != null && !c.getName().isBlank())
                 .map(Collections::singletonList)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.ok(Collections.emptyList()));
