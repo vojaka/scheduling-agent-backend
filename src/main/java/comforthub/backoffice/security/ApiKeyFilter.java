@@ -4,11 +4,10 @@ import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-@Component
+// Not registered as a @Component — JWT via SecurityConfig is the auth gate for /api/**
 public class ApiKeyFilter implements Filter {
 
     @Value("${app.api-key}")
