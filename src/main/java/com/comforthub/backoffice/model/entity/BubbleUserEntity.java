@@ -32,6 +32,9 @@ public class BubbleUserEntity {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @Column(name = "email")
+    private String email;
+
     // --- user scoping (V2__add_user_scoping.sql) ---
     /** Auth0 `sub` claim; maps the JWT principal to this user. Set out-of-band, not from Bubble sync. */
     @Column(name = "auth0_user_id")

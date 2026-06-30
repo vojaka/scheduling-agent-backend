@@ -17,7 +17,7 @@ public class BubbleUser {
     private String id;
 
     @JsonProperty("name")
-    @JsonAlias({"name", "name_text"})
+    @JsonAlias({"name", "name_text", "FullName"})
     private String name;
 
     @JsonProperty("role")
@@ -43,6 +43,35 @@ public class BubbleUser {
         this.roleObject = role;
     }
 
+    @JsonProperty("authentication")
+    private Authentication authentication;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Authentication {
+        @JsonProperty("email")
+        private Email email;
+
+        @Data
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class Email {
+            @JsonProperty("email")
+            private String email;
+        }
+    }
+
+    @JsonIgnore
+    public String getEmailAddress() {
+        if (authentication != null && authentication.getEmail() != null) {
+            return authentication.getEmail().getEmail();
+        }
+        return null;
+    }
+
     @JsonProperty("maxHours")
     @JsonAlias({"maxHours", "maxHours_number", "maxhours_number"})
     private Integer maxHours;
@@ -61,7 +90,9 @@ public class BubbleUser {
         "representing_a_company_custom____merchant",
         "representing_a_company_custom_merchant",
         "company",
-        "company_custom____merchant"
+        "company_custom____merchant",
+        "Representing a Company"
     })
     private String companyId;
 }
+

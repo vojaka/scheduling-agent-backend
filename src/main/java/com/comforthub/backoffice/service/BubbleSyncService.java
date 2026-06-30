@@ -125,6 +125,7 @@ public class BubbleSyncService {
         e.setRole(x.getRole());
         e.setMaxHours(x.getMaxHours() == null ? null : BigDecimal.valueOf(x.getMaxHours()));
         e.setIsActive(x.getActive());
+        e.setEmail(x.getEmailAddress());
         if (x.getCompanyId() != null && !x.getCompanyId().isBlank()) {
             e.setCompanyId(x.getCompanyId());
         }
@@ -185,11 +186,11 @@ public class BubbleSyncService {
         }
         CompanyEntity e = companyRepository.findById(bubbleId).orElseGet(CompanyEntity::new);
         e.setId(bubbleId);
-        e.setName(asString(firstNonNull(m.get("name"), m.get("name_text"))));
+        e.setName(asString(firstNonNull(m.get("Brand Company Name"), m.get("name"), m.get("name_text"))));
         e.setOwners(asStringArray(firstNonNull(
-                m.get("owners"), m.get("list_owners"), m.get("owners_list_user"), m.get("owners_list_users"))));
+                m.get("Owners"), m.get("owners"), m.get("list_owners"), m.get("owners_list_user"), m.get("owners_list_users"))));
         e.setWorkers(asStringArray(firstNonNull(
-                m.get("workers"), m.get("list_workers"), m.get("workers_list_user"), m.get("workers_list_users"))));
+                m.get("Workers (list)"), m.get("workers"), m.get("list_workers"), m.get("workers_list_user"), m.get("workers_list_users"))));
         companyRepository.save(e);
     }
 
