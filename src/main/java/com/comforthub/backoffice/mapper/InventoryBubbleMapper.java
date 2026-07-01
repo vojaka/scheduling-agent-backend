@@ -17,16 +17,26 @@ import java.util.Map;
  * the Bubble {@code inventory} object. This is the single place that knows
  * Bubble's field keys, so adapting to schema changes touches only this file.
  *
- * <p><b>WARNING — these field keys are INFERRED, not confirmed.</b> Unlike
- * {@link OrderBubbleMapper} (whose keys were verified against live {@code order}
- * records), no live {@code inventory} record was available, so every constant
- * below is a best guess modelled on the Order pattern: this app's Data API
- * exposes <em>display-name</em> keys (e.g. {@code "Merchant"}, {@code "Store"},
+ * <p><b>WARNING — most of these field keys are INFERRED, not confirmed.</b>
+ * Unlike {@link OrderBubbleMapper} (whose keys were verified against live
+ * {@code order} records), no live {@code inventory} record was available when
+ * this mapper was first written, so several constants below are best guesses
+ * modelled on the Order pattern: this app's Data API exposes
+ * <em>display-name</em> keys (e.g. {@code "Merchant"}, {@code "Store"},
  * {@code "S - Order Progress Status"}), and constraints use the same keys.
  * Each constant carries a comment with the reasoning. <b>Verify all of them
  * against a real Bubble {@code inventory} record before relying on this in
  * production</b> — a wrong key silently drops reads/writes (Bubble ignores
  * unknown keys rather than erroring).
+ *
+ * <p>{@code F_VAT}, {@code F_PRICE}, {@code F_DESCRIPTION}, {@code F_COMPANY},
+ * {@code F_TYPE} keys are taken verbatim from the live meta export in
+ * {@code comforthub_schema.md} (regenerated 2026-07-01), so those are
+ * confirmed field <em>names</em>. {@code VAT}'s option-set <em>values</em>
+ * (the {@code taxes} set) are still unverified — see backend issue #92 — but
+ * that only affects what the UI should offer as choices, not this mapper: the
+ * Bubble Data API accepts/returns option-set fields as plain display-text
+ * strings, so no enum-decoding logic is needed here regardless.
  */
 @Component
 public class InventoryBubbleMapper {
@@ -34,7 +44,7 @@ public class InventoryBubbleMapper {
     /** Bubble Data API object type. */
     public static final String TYPE = "inventory";
 
-    // ===== Inferred Bubble field keys (UNVERIFIED — see class doc) =====
+    // ===== Bubble field keys (see class doc for verification status) =====
 
     // Company/merchant scope key. VERIFIED against the Bubble `inventory` type:
     // the field is "Company" (not "Merchant" as the order type uses). Using
@@ -58,6 +68,18 @@ public class InventoryBubbleMapper {
     // Category ref at the Sub Category level. Guessed from former JPA column
     // category_id + display-name convention.
     static final String F_CATEGORY = "Category";
+
+    // VAT rate — option set "Taxes (VAT rates)" (internal name `taxes`).
+    // CONFIRMED as the live field name/type in comforthub_schema.md; the set's
+    // own values are still unverified (issue #92). Read/written as a plain
+    // string, same as F_TYPE — Bubble's Data API doesn't require enum decoding.
+    static final String F_VAT = "VAT";
+
+    // Base price, VAT included. CONFIRMED live field name.
+    static final String F_PRICE = "Price Base (w VAT)";
+
+    // Free-text description. CONFIRMED live field name.
+    static final String F_DESCRIPTION = "Description";
 
     // Soft-delete boolean. The ETL (BubbleSyncService) reads deletion flags from
     // "isDeleted"/"is_deleted"/"Deleted"; the display-name convention here favours
@@ -95,6 +117,9 @@ public class InventoryBubbleMapper {
         dto.setType(readString(r, F_TYPE));
         dto.setMainProductId(readString(r, F_MAIN_PRODUCT));
         dto.setCategoryId(readString(r, F_CATEGORY));
+        dto.setVat(readString(r, F_VAT));
+        dto.setPriceBaseWithVat(readBigDecimal(r, F_PRICE));
+        dto.setDescription(readString(r, F_DESCRIPTION));
         dto.setIsDeleted(readBoolean(r, F_IS_DELETED));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
@@ -200,15 +225,18 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_MAIN_PRODUCT, dto.getMainProductId());
         putIfPresent(body, F_CATEGORY, dto.getCategoryId());
+        putIfPresent(body, F_VAT, dto.getVat());
+        putIfPresent(body, F_PRICE, dto.getPriceBaseWithVat());
+        putIfPresent(body, F_DESCRIPTION, dto.getDescription());
         // New items are active.
         body.put(F_IS_DELETED, false);
         return body;
     }
 
     /**
-     * Partial body for PATCH /obj/inventory/{id} — only the four editable,
-     * non-null fields (name, type, mainProduct, category), matching the PUT
-     * contract.
+     * Partial body for PATCH /obj/inventory/{id} — only the editable, non-null
+     * fields (name, type, mainProduct, category, VAT, price, description),
+     * matching the PUT contract.
      */
     public Map<String, Object> toUpdateBody(InventoryDto dto) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -216,6 +244,9 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_MAIN_PRODUCT, dto.getMainProductId());
         putIfPresent(body, F_CATEGORY, dto.getCategoryId());
+        putIfPresent(body, F_VAT, dto.getVat());
+        putIfPresent(body, F_PRICE, dto.getPriceBaseWithVat());
+        putIfPresent(body, F_DESCRIPTION, dto.getDescription());
         return body;
     }
 
@@ -264,7 +295,6 @@ public class InventoryBubbleMapper {
         return s.isBlank() ? null : s;
     }
 
-    @SuppressWarnings("unused")
     private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
         String s = readString(r, key);
         if (s == null) {
