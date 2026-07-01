@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 /**
  * Offering payload exchanged with the React backoffice UI.
@@ -55,15 +54,6 @@ public class OfferingDto {
 
     /** Unit price. */
     private BigDecimal price;
-
-    /** Service duration in minutes. */
-    private Integer durationMinutes;
-
-    /** Bubble store ids this offering is available at. */
-    private List<String> storeIds;
-
-    /** Image URL (as Bubble returns it — may be protocol-relative). */
-    private String imageUrl;
 
     /** ISO-8601 instant (Bubble "Created Date"). */
     private String createdAt;
