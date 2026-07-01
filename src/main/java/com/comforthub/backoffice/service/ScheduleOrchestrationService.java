@@ -4,6 +4,7 @@ import com.comforthub.backoffice.client.BubbleClient;
 import com.comforthub.backoffice.dto.ScheduleGenerateResponse;
 import com.comforthub.backoffice.dto.ShiftResponseDto;
 import com.comforthub.backoffice.dto.ValidationReport;
+import com.comforthub.backoffice.model.BubbleAvailability;
 import com.comforthub.backoffice.model.BubbleShift;
 import com.comforthub.backoffice.model.BubbleStore;
 import com.comforthub.backoffice.model.BubbleUser;
@@ -20,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -28,8 +30,11 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +45,7 @@ public class ScheduleOrchestrationService {
     private final BubbleClient bubbleClient;
     private final DeterministicValidator validator;
     private final ObjectMapper objectMapper;
+    private final GeminiPromptBuilder promptBuilder;
     private final RestTemplate restTemplate;
 
     @Value("${gemini.api.key}")
@@ -50,10 +56,12 @@ public class ScheduleOrchestrationService {
 
     public ScheduleOrchestrationService(BubbleClient bubbleClient,
                                         DeterministicValidator validator,
-                                        ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        GeminiPromptBuilder promptBuilder) {
         this.bubbleClient = bubbleClient;
         this.validator = validator;
         this.objectMapper = objectMapper;
+        this.promptBuilder = promptBuilder;
         this.restTemplate = new RestTemplate();
     }
 
@@ -64,10 +72,11 @@ public class ScheduleOrchestrationService {
         logs.add("Initiating schedule generation...");
 
         // 1. Fetch data from Bubble
-        logs.add("Fetching worker and wage context from Bubble...");
+        logs.add("Fetching worker, wage, store and availability context from Bubble...");
         List<BubbleUser> workers = bubbleClient.fetchUsers();
         List<BubbleWageRate> wages = bubbleClient.fetchWageRates();
         List<BubbleStore> stores = bubbleClient.fetchStores();
+        List<BubbleAvailability> availability = bubbleClient.fetchAvailability();
 
         // Filter workers by company if specified
         if (company != null && !company.isBlank()) {
@@ -90,7 +99,43 @@ public class ScheduleOrchestrationService {
             logs.add("Filtered to " + workers.size() + " workers from explicit list.");
         }
 
-        logs.add("Successfully fetched " + workers.size() + " workers and " + wages.size() + " wage rates.");
+        // Backend #4: drop inactive workers from the candidate pool before they reach the prompt
+        // or the validator. `active == false` is explicit; null (field never set on legacy Bubble
+        // rows) is treated as active so we fail open rather than silently excluding everyone.
+        workers = workers.stream()
+                .filter(w -> !Boolean.FALSE.equals(w.getActive()))
+                .collect(Collectors.toList());
+        logs.add("Filtered to " + workers.size() + " active workers.");
+
+        // Backend #4: trim wage rates and stores down to what the remaining workers/company
+        // actually need before formatting the prompt (unused worker metadata / inactive stores).
+        Set<String> workerIds = workers.stream().map(BubbleUser::getId).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+        Set<String> workerNames = workers.stream().map(BubbleUser::getName).filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+        List<BubbleWageRate> relevantWages = wages.stream()
+                .filter(w -> workerIds.contains(w.getUser()) || workerNames.contains(w.getUser()))
+                .collect(Collectors.toList());
+        List<BubbleStore> activeStores = stores.stream()
+                .filter(s -> !Boolean.TRUE.equals(s.getIsDeleted()))
+                .filter(s -> company == null || company.isBlank() || company.equals(s.getCompany()))
+                .collect(Collectors.toList());
+        logs.add("Filtered to " + relevantWages.size() + " relevant wage rates and "
+                + activeStores.size() + " active stores.");
+
+        // Backend #2: index availability records by the thing (worker/user or store) they're
+        // attached to, so both the prompt builder and the deterministic validator can look a
+        // worker's or store's constraints up by id. Workers with no availability record on file
+        // are left unconstrained (see GeminiPromptBuilder#formatAvailability javadoc).
+        Map<String, BubbleAvailability> workerAvailabilityById = availability.stream()
+                .filter(a -> isWorkerOrUserThing(a.getThingType()) && a.getThingId() != null
+                        && workerIds.contains(a.getThingId()))
+                .collect(Collectors.toMap(BubbleAvailability::getThingId, a -> a, (a, b) -> a));
+        Map<String, BubbleAvailability> storeAvailabilityById = availability.stream()
+                .filter(a -> isStoreThing(a.getThingType()) && a.getThingId() != null)
+                .collect(Collectors.toMap(BubbleAvailability::getThingId, a -> a, (a, b) -> a));
+        logs.add("Resolved availability for " + workerAvailabilityById.size() + " of " + workers.size()
+                + " workers (others treated as unrestricted).");
 
         // Build enriched prompt with context
         String enrichedPrompt = userPrompt != null ? userPrompt : "";
@@ -112,15 +157,16 @@ public class ScheduleOrchestrationService {
             proposedShifts = runSimulatedLLM(enrichedPrompt, workers, logs);
         } else {
             logs.add("[LIVE MODE] Running real Gemini model generation via API...");
-            proposedShifts = runRealGemini(enrichedPrompt, workers, wages, logs);
+            proposedShifts = runRealGemini(enrichedPrompt, workers, relevantWages, activeStores,
+                    workerAvailabilityById, storeAvailabilityById, logs);
         }
 
         // Enrich shifts with company and type before validation
-        enrichShifts(proposedShifts, workers, wages);
+        enrichShifts(proposedShifts, workers, relevantWages);
 
-        // 2. Run Deterministic Validation (Estonian labor laws & constraints)
+        // 2. Run Deterministic Validation (Estonian labor laws, constraints & per-worker availability)
         logs.add("Sending proposed shifts to Deterministic Validator Gatekeeper...");
-        ValidationReport report = validator.validate(proposedShifts, workers);
+        ValidationReport report = validator.validate(proposedShifts, workers, workerAvailabilityById);
 
         if (report.isValid()) {
             logs.add("VALIDATION SUCCESS: Proposed schedule matches all Estonian compliance rules.");
@@ -136,7 +182,9 @@ public class ScheduleOrchestrationService {
         return new ScheduleGenerateResponse(responseDtos, report, logs);
     }
 
-    private List<BubbleShift> runRealGemini(String userPrompt, List<BubbleUser> workers, List<BubbleWageRate> wages, List<String> logs) {
+    private List<BubbleShift> runRealGemini(String userPrompt, List<BubbleUser> workers, List<BubbleWageRate> wages,
+                                            List<BubbleStore> stores, Map<String, BubbleAvailability> workerAvailabilityById,
+                                            Map<String, BubbleAvailability> storeAvailabilityById, List<String> logs) {
         try {
             // Get current date context in Estonia
             ZoneId estoniaZone = ZoneId.of("Europe/Tallinn");
@@ -145,42 +193,21 @@ public class ScheduleOrchestrationService {
             String todayStr = now.format(DateTimeFormatter.ofPattern("EEEE, yyyy-MM-dd"));
             String nextMondayStr = nextMonday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-            // Build prompt
-            StringBuilder contextBuilder = new StringBuilder();
-            contextBuilder.append("Active workers (Users) in the system:\n");
-            for (BubbleUser w : workers) {
-                contextBuilder.append(String.format("- ID: %s, Name: %s, Role: %s, Max Weekly Hours: %s\n",
-                        w.getId(), w.getName(), w.getRole(), w.getMaxHours() != null ? w.getMaxHours() : "no limit"));
-            }
+            // Build the compact prompt (backend #4: trimmed context; backend #2: availability
+            // constraints folded into each worker/store line) via the dedicated prompt builder.
+            Map<String, BigDecimal> rateById = promptBuilder.buildRateLookup(wages, workers);
+            String workerContext = promptBuilder.buildWorkerContext(workers, rateById, workerAvailabilityById);
+            String storeContext = promptBuilder.buildStoreContext(stores, storeAvailabilityById);
+            String fullPrompt = promptBuilder.assemblePrompt(todayStr, nextMondayStr, workerContext, storeContext, userPrompt);
 
-            contextBuilder.append("\nWage Rates:\n");
-            for (BubbleWageRate r : wages) {
-                contextBuilder.append(String.format("- Worker: %s, Company: %s, Rate: %s\n",
-                        r.getUser(), r.getCompany(), r.getRate()));
-            }
-
-            String systemPrompt = "You are an expert workforce scheduling agent. Today's date is " + todayStr + ". " +
-                    "Your job is to assign workers to required slots for the upcoming week starting on Monday, " + nextMondayStr + ".\n" +
-                    "Generate shifts that cover the work demands based on worker availability, preferences, and wage rates.\n" +
-                    "You must output a JSON object containing an array 'proposedShifts'. Each item in 'proposedShifts' must contain:\n" +
-                    "- 'assignedUser': The exact name or ID of the assigned worker.\n" +
-                    "- 'startTime': The ISO-8601 UTC date string when the shift starts (e.g. " + nextMondayStr + "T08:00:00Z).\n" +
-                    "- 'endTime': The ISO-8601 UTC date string when the shift ends (e.g. " + nextMondayStr + "T16:00:00Z).\n" +
-                    "- 'notes': Simple comments about the shift.\n\n" +
-                    "Strict Compliance Rules (Estonia):\n" +
-                    "1. No worker can work a shift longer than 12 hours.\n" +
-                    "2. Ensure at least 11 hours of continuous rest for an employee between shifts.\n" +
-                    "3. Shifts between 22:00 and 06:00 are night shifts. Try to minimize night shifts if possible.\n\n" +
-                    "User Custom Guidelines:\n" +
-                    userPrompt;
-
-            logs.add("Assembled prompt context with " + workers.size() + " workers.");
+            logs.add("Assembled prompt context with " + workers.size() + " workers and "
+                    + (stores != null ? stores.size() : 0) + " stores.");
 
             // Build HTTP Request payload
             Map<String, Object> requestBody = new HashMap<>();
 
             Map<String, Object> part = new HashMap<>();
-            part.put("text", systemPrompt + "\n\nWorker Context:\n" + contextBuilder.toString());
+            part.put("text", fullPrompt);
 
             Map<String, Object> content = new HashMap<>();
             content.put("parts", List.of(part));
@@ -401,6 +428,24 @@ public class ScheduleOrchestrationService {
                 shift.setType("Regular");
             }
         }
+    }
+
+    /**
+     * Whether a {@code bubble_availability} {@code thingType} refers to a worker/user (as opposed to
+     * a store). Mirrors {@code AvailabilityController#ownsThing}'s case-insensitive prefix match —
+     * the {@code things} option set uses {@code "Worker"} / {@code "User"} / {@code "Store"}.
+     */
+    static boolean isWorkerOrUserThing(String thingType) {
+        if (thingType == null) {
+            return false;
+        }
+        String t = thingType.trim().toLowerCase();
+        return t.startsWith("worker") || t.startsWith("user");
+    }
+
+    /** Whether a {@code bubble_availability} {@code thingType} refers to a store. */
+    static boolean isStoreThing(String thingType) {
+        return thingType != null && thingType.trim().toLowerCase().startsWith("store");
     }
 
     @Data

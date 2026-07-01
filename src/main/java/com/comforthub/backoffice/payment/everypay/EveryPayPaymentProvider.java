@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 
@@ -224,8 +225,20 @@ public class EveryPayPaymentProvider
         return type == AgreementType.RECURRING ? "recurring" : "unscheduled";
     }
 
-    private static double minorToMajor(long amountMinor) {
-        return amountMinor / 100.0;
+    /**
+     * Formats minor units as a fixed 2-decimal major-unit amount string
+     * (e.g. 1010 -&gt; "10.10", 7 -&gt; "0.07"), keeping the money path on
+     * {@link BigDecimal} end-to-end so no binary {@code double} is ever
+     * constructed (see backend issue #102 / epic #79 "Money" requirement).
+     *
+     * <p><b>Unverified:</b> whether EveryPay's APIv4 expects a fixed-decimal
+     * JSON string or a JSON number for {@code amount} has not been confirmed
+     * against the sandbox (tracked alongside #82's sandbox wire-shape TODOs).
+     * A fixed 2-decimal string is the defensible default for a JSON payment
+     * API; revisit once the sandbox contract is confirmed.
+     */
+    private static String minorToMajor(long amountMinor) {
+        return BigDecimal.valueOf(amountMinor, 2).toPlainString();
     }
 
     private static String asString(Object o) {
@@ -246,4 +259,3 @@ public class EveryPayPaymentProvider
         };
     }
 }
-
