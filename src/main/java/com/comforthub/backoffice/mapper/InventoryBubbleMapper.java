@@ -74,46 +74,34 @@ public class InventoryBubbleMapper {
     // this inventory id. *** FLAG: verify which direction the link lives on. ***
     static final String F_OFFERINGS = "Offerings";
 
-    // ===== Bubble-parity CRUD fields (Phase 5 §3/§5) — all INFERRED display-name
-    // guesses. The live Bubble schema/swagger was NOT reachable from CI (egress
-    // policy blocks comforthub.ee), so none of the keys below could be confirmed
-    // against a real `inventory` record. They follow this app's display-name
-    // convention (see the verified "Company" key above). A wrong key fails
-    // silently: reads return null, writes are dropped by Bubble. VERIFY EACH
-    // against a live record before relying on them. =====
+    // ===== Bubble-parity CRUD fields (Phase 5 §3/§5) — VERIFIED against
+    // comforthub_schema.md, lines 376–405 (Inventory), regenerated from Bubble's
+    // live /meta endpoint on 2026-07-01. These are the real Bubble field keys. =====
 
-    // Free-text description. INFERRED — "Description" is Bubble's default label
-    // for a text field named description.
+    /** Free-text description. VERIFIED: "Description". */
     static final String F_DESCRIPTION = "Description";
 
-    // VAT / tax rate, backed by Bubble's `taxes` OPTION SET. INFERRED key —
-    // likely "Tax", "VAT" or "Taxes". *** The option-set VALUES are UNVERIFIED:
-    // the task asked to enumerate them from live Bubble/swagger, which was not
-    // reachable here. Modelled as a pass-through String (like `type`) so we do
-    // NOT hard-code a guessed enum. Confirm both the field key and the `taxes`
-    // option values against live Bubble. ***
-    static final String F_VAT = "Tax";
+    /**
+     * VAT rate — backed by Bubble's {@code Taxes} option set. VERIFIED: "VAT".
+     * Carried as a pass-through String (the option value), matching how the
+     * other option-set-backed fields are handled — no hard-coded enum.
+     */
+    static final String F_VAT = "VAT";
 
-    // Unit price (number). INFERRED — "Price". The offerings type uses a
-    // "Price - Price Source" composite, so this could instead be "Price - Amount";
-    // VERIFY.
-    static final String F_PRICE = "Price";
+    /** VAT-inclusive base price (number). VERIFIED: "Price Base (w VAT)". */
+    static final String F_PRICE = "Price Base (w VAT)";
 
-    // Preparation time in minutes (number). INFERRED — "Prep Time"; could be
-    // "Preparation Time" / "Prep Time (min)". VERIFY.
-    static final String F_PREP_TIME = "Prep Time";
+    /** Preparation time in minutes (number). VERIFIED: "Time(minutes) - Preparation time for Products". */
+    static final String F_PREP_TIME = "Time(minutes) - Preparation time for Products";
 
-    // Workers who can deliver this item — a Bubble LIST of User ids. INFERRED —
-    // "Workers"; could be "Assigned Workers". VERIFY key and that it is a list.
+    /** Workers who can deliver this item — a Bubble LIST of User ids. VERIFIED: "Workers". */
     static final String F_WORKERS = "Workers";
 
-    // Primary image (Bubble image/file field → URL string). INFERRED — "Image";
-    // could be "Main Image" / "Photo". VERIFY.
-    static final String F_IMAGE = "Image";
+    /** Primary image (Bubble image field → URL string). VERIFIED: "Main Image". */
+    static final String F_IMAGE = "Main Image";
 
-    // Additional images — a Bubble LIST of image/file fields (URL strings).
-    // INFERRED — "Secondary Images"; could be "Images" / "Gallery". VERIFY.
-    static final String F_SECONDARY_IMAGES = "Secondary Images";
+    /** Additional images — a Bubble LIST of image fields (URL strings). VERIFIED: "Images". */
+    static final String F_SECONDARY_IMAGES = "Images";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";

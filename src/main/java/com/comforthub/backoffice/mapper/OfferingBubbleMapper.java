@@ -59,8 +59,8 @@ public class OfferingBubbleMapper {
      */
     static final String F_STATUS = "Offering Activity Status";
 
-    /** From {@code delivery_type}: best match is "Delivery Method Precision". VERIFY. */
-    static final String F_DELIVERY_TYPE = "Delivery Method Precision";
+    /** Delivery method. VERIFIED against comforthub_schema.md (Bubble /meta, 2026-07-01): "Delivery Types". */
+    static final String F_DELIVERY_TYPE = "Delivery Types";
 
     /** CONFIRMED: "Pay Options for this Offering" (a list of Pay Options). */
     static final String F_PAY_OPTIONS = "Pay Options for this Offering";
@@ -88,27 +88,16 @@ public class OfferingBubbleMapper {
      */
     static final String F_INVENTORY_LIST = "Inventory";
 
-    // ===== Bubble-parity CRUD fields (Phase 5 §3/§5) — all INFERRED. The live
-    // Bubble schema/swagger was NOT reachable from CI (egress policy blocks
-    // comforthub.ee), so none of the keys below were confirmed against a real
-    // `offerings` record. A wrong key fails silently. VERIFY EACH before prod. =====
+    // ===== Bubble-parity CRUD field (Phase 5 §3/§5) — VERIFIED against
+    // comforthub_schema.md (Bubble /meta, 2026-07-01). NOTE: the plan's
+    // durationMinutes / storeIds / imageUrl were dropped — the Offerings type has
+    // no such fields (duration and images live on the Inventory type). =====
 
-    // Unit price (number). INFERRED — modelled on the CONFIRMED sibling
-    // "Price - Price Source", so the amount is likely "Price - Amount"; could
-    // also be plain "Price" / "Price - Fixed Price". VERIFY.
-    static final String F_PRICE = "Price - Amount";
-
-    // Service duration in minutes (number). INFERRED — "Duration"; could be
-    // "Duration Minutes" / "Service Duration". VERIFY.
-    static final String F_DURATION = "Duration";
-
-    // Stores this offering is available at — a Bubble LIST of Store ids.
-    // INFERRED — "Stores"; could be "Available Stores" / "Store". VERIFY.
-    static final String F_STORES = "Stores";
-
-    // Image (Bubble image/file field → URL string). INFERRED — "Image"; could be
-    // "Main Image" / "Photo". VERIFY.
-    static final String F_IMAGE = "Image";
+    /**
+     * Unit price (number). VERIFIED against comforthub_schema.md (Bubble /meta,
+     * 2026-07-01), Offerings: "Price - Manual Inventory Price per single measurement".
+     */
+    static final String F_PRICE = "Price - Manual Inventory Price per single measurement";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
@@ -139,9 +128,6 @@ public class OfferingBubbleMapper {
         dto.setUnlimitedQuantity(readBoolean(r, F_UNLIMITED_QUANTITY));
         dto.setQuantityRequired(readBoolean(r, F_QUANTITY_REQUIRED));
         dto.setPrice(readBigDecimal(r, F_PRICE));
-        dto.setDurationMinutes(readInteger(r, F_DURATION));
-        dto.setStoreIds(readStringListOrNull(r, F_STORES));
-        dto.setImageUrl(readString(r, F_IMAGE));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
     }
@@ -181,9 +167,6 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
         putIfPresent(body, F_PRICE, dto.getPrice());
-        putIfPresent(body, F_DURATION, dto.getDurationMinutes());
-        putIfPresent(body, F_STORES, dto.getStoreIds());
-        putIfPresent(body, F_IMAGE, dto.getImageUrl());
         return body;
     }
 
@@ -191,7 +174,7 @@ public class OfferingBubbleMapper {
      * Partial body for PATCH /obj/offerings/{id} — only the PUT-contract fields
      * that are non-null: name, type, status, deliveryType, payOptions,
      * priceSource, defaultType, limitedVisibility, unlimitedQuantity,
-     * quantityRequired, price, durationMinutes, storeIds, imageUrl.
+     * quantityRequired, price.
      */
     public Map<String, Object> toUpdateBody(OfferingDto dto) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -206,9 +189,6 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
         putIfPresent(body, F_PRICE, dto.getPrice());
-        putIfPresent(body, F_DURATION, dto.getDurationMinutes());
-        putIfPresent(body, F_STORES, dto.getStoreIds());
-        putIfPresent(body, F_IMAGE, dto.getImageUrl());
         return body;
     }
 
@@ -366,15 +346,6 @@ public class OfferingBubbleMapper {
         return out;
     }
 
-    /** Like {@link #readStringList} but {@code null} when absent/empty (so {@code NON_NULL} omits it). */
-    private static List<String> readStringListOrNull(Map<String, Object> r, String key) {
-        if (r == null || r.get(key) == null) {
-            return null;
-        }
-        List<String> out = readStringList(r, key);
-        return out.isEmpty() ? null : out;
-    }
-
     private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
         String s = readString(r, key);
         if (s == null) {
@@ -382,21 +353,6 @@ public class OfferingBubbleMapper {
         }
         try {
             return new BigDecimal(s);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static Integer readInteger(Map<String, Object> r, String key) {
-        Object v = r == null ? null : r.get(key);
-        if (v == null) {
-            return null;
-        }
-        if (v instanceof Number n) {
-            return n.intValue();
-        }
-        try {
-            return (int) Math.round(Double.parseDouble(String.valueOf(v).trim()));
         } catch (NumberFormatException e) {
             return null;
         }
