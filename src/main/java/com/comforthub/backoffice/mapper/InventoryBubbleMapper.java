@@ -1,6 +1,7 @@
 package com.comforthub.backoffice.mapper;
 
 import com.comforthub.backoffice.dto.InventoryDto;
+import com.comforthub.backoffice.dto.InventoryExtensionDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -9,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,8 +43,34 @@ public class InventoryBubbleMapper {
     static final String F_IMAGE = "Main Image";
     static final String F_SECONDARY_IMAGES = "Images";
 
+    /**
+     * Forward list-of-links field on {@code inventory}, pointing at the
+     * child {@code inventoryextensions} records. Verified against
+     * comforthub_schema.md ("Inventory" type, "Extensions | -> inventoryextensions [list]").
+     */
+    static final String F_EXTENSIONS = "Extensions";
+
+    /**
+     * Bubble Data API object type for the "Inventory Extensions" child
+     * records (icon/title/body rows on the "Modify Inventory" editor).
+     * Verified against comforthub_schema.md, live 2026-07-01.
+     */
+    public static final String EXTENSION_TYPE = "inventoryextensions";
+
+    // Verified 2026-07-01 against comforthub_schema.md "Inventory Extensions"
+    // (`inventoryextensions`, 10 fields).
+    static final String EXT_F_INVENTORY = "Inventory";
+    static final String EXT_F_ICON = "Icon";
+    static final String EXT_F_NAME = "Extension Name";
+    static final String EXT_F_DESCRIPTION = "Extension Description";
+    static final String EXT_F_POSITION = "List Position";
+
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
+
+    /** Orders extension rows by their Bubble "List Position" (nulls last). */
+    public static final Comparator<InventoryExtensionDto> BY_POSITION =
+            Comparator.comparing(d -> d.getPosition() == null ? Integer.MAX_VALUE : d.getPosition());
 
     private final ObjectMapper objectMapper;
 
@@ -73,6 +101,11 @@ public class InventoryBubbleMapper {
         dto.setImageUrl(readString(r, F_IMAGE));
         dto.setSecondaryImageUrls(readStringListOrNull(r, F_SECONDARY_IMAGES));
         dto.setCreatedAt(readInstant(r, "Created Date"));
+        // NOTE: `extensions` is deliberately left unset here — populating it
+        // requires a separate Bubble query against `inventoryextensions`
+        // (this mapper method only ever sees one already-fetched record), so
+        // callers attach it via toExtensionDto()/the controller's dedicated
+        // GET /{id}/extensions path instead. See InventoryController.
         return dto;
     }
 
@@ -133,6 +166,68 @@ public class InventoryBubbleMapper {
     private Map<String, Object> offeringsListBody(List<String> ids) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(F_OFFERINGS, ids);
+        return body;
+    }
+
+    // ------------------------------------------------------------ extensions
+
+    /** Map one Bubble {@code inventoryextensions} record to the UI DTO. */
+    public InventoryExtensionDto toExtensionDto(Map<String, Object> r) {
+        InventoryExtensionDto dto = new InventoryExtensionDto();
+        dto.setId(readString(r, "_id"));
+        dto.setIcon(readString(r, EXT_F_ICON));
+        dto.setTitle(readString(r, EXT_F_NAME));
+        dto.setBody(readString(r, EXT_F_DESCRIPTION));
+        dto.setPosition(readInteger(r, EXT_F_POSITION));
+        return dto;
+    }
+
+    /**
+     * Bubble constraints JSON scoping {@code inventoryextensions} to the
+     * owning inventory item, via the verified {@code Inventory}
+     * back-reference field.
+     */
+    public String buildExtensionConstraints(String inventoryId) {
+        List<Map<String, Object>> constraints = new ArrayList<>();
+        constraints.add(constraint(EXT_F_INVENTORY, "equals", inventoryId));
+        try {
+            return objectMapper.writeValueAsString(constraints);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to build Bubble constraints", e);
+        }
+    }
+
+    /** Body for POST /obj/inventoryextensions — links the row to its parent. */
+    public Map<String, Object> toExtensionCreateBody(InventoryExtensionDto dto, String inventoryId) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(EXT_F_INVENTORY, inventoryId);
+        putIfPresent(body, EXT_F_ICON, dto.getIcon());
+        putIfPresent(body, EXT_F_NAME, dto.getTitle());
+        putIfPresent(body, EXT_F_DESCRIPTION, dto.getBody());
+        putIfPresent(body, EXT_F_POSITION, dto.getPosition());
+        return body;
+    }
+
+    /** Partial body for PATCH /obj/inventoryextensions/{id}. */
+    public Map<String, Object> toExtensionUpdateBody(InventoryExtensionDto dto) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        putIfPresent(body, EXT_F_ICON, dto.getIcon());
+        putIfPresent(body, EXT_F_NAME, dto.getTitle());
+        putIfPresent(body, EXT_F_DESCRIPTION, dto.getBody());
+        putIfPresent(body, EXT_F_POSITION, dto.getPosition());
+        return body;
+    }
+
+    /**
+     * Body to overwrite the parent inventory's forward {@code Extensions}
+     * list field with the current set of child ids (in display order), so
+     * Bubble-side reads that follow the forward link (e.g. the Bubble editor
+     * itself, or the frontend's {@code inventory_extension_card} reusable)
+     * stay in sync with the child records this mapper writes.
+     */
+    public Map<String, Object> extensionsListBody(List<String> ids) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(F_EXTENSIONS, ids);
         return body;
     }
 

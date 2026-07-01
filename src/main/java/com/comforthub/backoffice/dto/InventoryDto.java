@@ -63,6 +63,23 @@ public class InventoryDto {
     /** Additional image URLs. */
     private List<String> secondaryImageUrls;
 
+    /**
+     * Repeatable "Service Description Extension" rows (icon/title/body),
+     * shown in the Bubble "Modify Inventory" editor as an icon picker + title
+     * + body + Add repeater. Backed by the separate Bubble
+     * {@code inventoryextensions} type, linked from {@code inventory} via its
+     * {@code Extensions [list]} field — see
+     * {@link com.comforthub.backoffice.mapper.InventoryBubbleMapper}.
+     *
+     * <p>Left {@code null} on list responses (not eager-loaded, to avoid an
+     * N+1 Bubble call per row); populated on single-item reads via
+     * {@code GET /api/inventory/{id}/extensions} and on create/update
+     * responses. Sent as a (possibly empty) list on create/update so the
+     * backend can reconcile the child records — a {@code null} field leaves
+     * existing extensions untouched, an empty list clears them.
+     */
+    private List<InventoryExtensionDto> extensions;
+
     private Boolean isDeleted;
 
     /** ISO-8601 instant (Bubble "Created Date"). */
