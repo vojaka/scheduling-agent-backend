@@ -68,6 +68,11 @@ jobs:
             METABASE_EMBED_SECRET=${{ secrets.METABASE_EMBED_SECRET }}
             SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}
             DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}
+            MONTONIO_ACCESS_KEY=${{ secrets.MONTONIO_ACCESS_KEY }}
+            MONTONIO_SECRET_KEY=${{ secrets.MONTONIO_SECRET_KEY }}
+            EVERYPAY_API_USERNAME=${{ secrets.EVERYPAY_API_USERNAME }}
+            EVERYPAY_API_SECRET=${{ secrets.EVERYPAY_API_SECRET }}
+            EVERYPAY_ACCOUNT_NAME=${{ secrets.EVERYPAY_ACCOUNT_NAME }}
             _EOF_SECRETS_
             # Lock down permissions so only the file owner can read or write it.
             chmod 600 .env
