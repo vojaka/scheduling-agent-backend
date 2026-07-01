@@ -16,4 +16,7 @@ public interface BubbleUserRepository extends JpaRepository<BubbleUserEntity, UU
     Optional<BubbleUserEntity> findByAuth0UserId(String auth0UserId);
     List<BubbleUserEntity> findByCompanyId(String companyId);
     Page<BubbleUserEntity> findByCompanyId(String companyId, Pageable pageable);
+
+    /** Company-scoped membership check for the invite flow (case-insensitive email). */
+    List<BubbleUserEntity> findByCompanyIdAndEmailIgnoreCase(String companyId, String email);
 }
