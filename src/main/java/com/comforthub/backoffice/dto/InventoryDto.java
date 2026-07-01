@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -42,6 +43,33 @@ public class InventoryDto {
 
     /** Category ref at the Sub Category level (Bubble category id). */
     private String categoryId;
+
+    /** Free-text description shown on the catalog item. */
+    private String description;
+
+    /**
+     * VAT / tax rate. Backed by Bubble's {@code taxes} option set, so the value
+     * is one of that set's options (e.g. a rate label). Carried as a pass-through
+     * string exactly like {@code type} — the caller/Bubble own the valid values.
+     * <p><b>The option-set values are UNVERIFIED</b> (the live Bubble schema was
+     * not reachable from CI); see {@link com.comforthub.backoffice.mapper.InventoryBubbleMapper}.
+     */
+    private String vat;
+
+    /** Unit price. */
+    private BigDecimal price;
+
+    /** Preparation time in minutes. */
+    private Integer prepTimeMinutes;
+
+    /** Bubble user ids of the workers who can deliver this item. */
+    private List<String> workerIds;
+
+    /** Primary image URL (as Bubble returns it — may be protocol-relative). */
+    private String imageUrl;
+
+    /** Additional image URLs. */
+    private List<String> secondaryImageUrls;
 
     private Boolean isDeleted;
 

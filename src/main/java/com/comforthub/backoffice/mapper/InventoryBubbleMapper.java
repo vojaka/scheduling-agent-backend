@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,47 @@ public class InventoryBubbleMapper {
     // this inventory id. *** FLAG: verify which direction the link lives on. ***
     static final String F_OFFERINGS = "Offerings";
 
+    // ===== Bubble-parity CRUD fields (Phase 5 §3/§5) — all INFERRED display-name
+    // guesses. The live Bubble schema/swagger was NOT reachable from CI (egress
+    // policy blocks comforthub.ee), so none of the keys below could be confirmed
+    // against a real `inventory` record. They follow this app's display-name
+    // convention (see the verified "Company" key above). A wrong key fails
+    // silently: reads return null, writes are dropped by Bubble. VERIFY EACH
+    // against a live record before relying on them. =====
+
+    // Free-text description. INFERRED — "Description" is Bubble's default label
+    // for a text field named description.
+    static final String F_DESCRIPTION = "Description";
+
+    // VAT / tax rate, backed by Bubble's `taxes` OPTION SET. INFERRED key —
+    // likely "Tax", "VAT" or "Taxes". *** The option-set VALUES are UNVERIFIED:
+    // the task asked to enumerate them from live Bubble/swagger, which was not
+    // reachable here. Modelled as a pass-through String (like `type`) so we do
+    // NOT hard-code a guessed enum. Confirm both the field key and the `taxes`
+    // option values against live Bubble. ***
+    static final String F_VAT = "Tax";
+
+    // Unit price (number). INFERRED — "Price". The offerings type uses a
+    // "Price - Price Source" composite, so this could instead be "Price - Amount";
+    // VERIFY.
+    static final String F_PRICE = "Price";
+
+    // Preparation time in minutes (number). INFERRED — "Prep Time"; could be
+    // "Preparation Time" / "Prep Time (min)". VERIFY.
+    static final String F_PREP_TIME = "Prep Time";
+
+    // Workers who can deliver this item — a Bubble LIST of User ids. INFERRED —
+    // "Workers"; could be "Assigned Workers". VERIFY key and that it is a list.
+    static final String F_WORKERS = "Workers";
+
+    // Primary image (Bubble image/file field → URL string). INFERRED — "Image";
+    // could be "Main Image" / "Photo". VERIFY.
+    static final String F_IMAGE = "Image";
+
+    // Additional images — a Bubble LIST of image/file fields (URL strings).
+    // INFERRED — "Secondary Images"; could be "Images" / "Gallery". VERIFY.
+    static final String F_SECONDARY_IMAGES = "Secondary Images";
+
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
 
@@ -95,6 +137,13 @@ public class InventoryBubbleMapper {
         dto.setType(readString(r, F_TYPE));
         dto.setMainProductId(readString(r, F_MAIN_PRODUCT));
         dto.setCategoryId(readString(r, F_CATEGORY));
+        dto.setDescription(readString(r, F_DESCRIPTION));
+        dto.setVat(readString(r, F_VAT));
+        dto.setPrice(readBigDecimal(r, F_PRICE));
+        dto.setPrepTimeMinutes(readInteger(r, F_PREP_TIME));
+        dto.setWorkerIds(readStringListOrNull(r, F_WORKERS));
+        dto.setImageUrl(readString(r, F_IMAGE));
+        dto.setSecondaryImageUrls(readStringListOrNull(r, F_SECONDARY_IMAGES));
         dto.setIsDeleted(readBoolean(r, F_IS_DELETED));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
@@ -200,6 +249,13 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_MAIN_PRODUCT, dto.getMainProductId());
         putIfPresent(body, F_CATEGORY, dto.getCategoryId());
+        putIfPresent(body, F_DESCRIPTION, dto.getDescription());
+        putIfPresent(body, F_VAT, dto.getVat());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_PREP_TIME, dto.getPrepTimeMinutes());
+        putIfPresent(body, F_WORKERS, dto.getWorkerIds());
+        putIfPresent(body, F_IMAGE, dto.getImageUrl());
+        putIfPresent(body, F_SECONDARY_IMAGES, dto.getSecondaryImageUrls());
         // New items are active.
         body.put(F_IS_DELETED, false);
         return body;
@@ -216,6 +272,13 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_MAIN_PRODUCT, dto.getMainProductId());
         putIfPresent(body, F_CATEGORY, dto.getCategoryId());
+        putIfPresent(body, F_DESCRIPTION, dto.getDescription());
+        putIfPresent(body, F_VAT, dto.getVat());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_PREP_TIME, dto.getPrepTimeMinutes());
+        putIfPresent(body, F_WORKERS, dto.getWorkerIds());
+        putIfPresent(body, F_IMAGE, dto.getImageUrl());
+        putIfPresent(body, F_SECONDARY_IMAGES, dto.getSecondaryImageUrls());
         return body;
     }
 
@@ -247,9 +310,18 @@ public class InventoryBubbleMapper {
     }
 
     private static void putIfPresent(Map<String, Object> body, String key, Object value) {
-        if (value != null && !(value instanceof String s && s.isBlank())) {
-            body.put(key, value);
+        if (value == null) {
+            return;
         }
+        if (value instanceof String s && s.isBlank()) {
+            return;
+        }
+        // An empty list means "not provided" here (parity with the null/blank
+        // guards above); skip it so a partial update never clears the field.
+        if (value instanceof Collection<?> c && c.isEmpty()) {
+            return;
+        }
+        body.put(key, value);
     }
 
     private static String readString(Map<String, Object> r, String key) {
@@ -264,7 +336,6 @@ public class InventoryBubbleMapper {
         return s.isBlank() ? null : s;
     }
 
-    @SuppressWarnings("unused")
     private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
         String s = readString(r, key);
         if (s == null) {
@@ -275,6 +346,51 @@ public class InventoryBubbleMapper {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private static Integer readInteger(Map<String, Object> r, String key) {
+        Object v = r == null ? null : r.get(key);
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return (int) Math.round(Double.parseDouble(String.valueOf(v).trim()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * A Bubble list field read as a {@code List<String>}, or {@code null} when
+     * absent/empty so {@code @JsonInclude(NON_NULL)} omits it from the response.
+     * A single ref may arrive as a bare string, which is wrapped in a singleton.
+     */
+    @SuppressWarnings("unchecked")
+    private static List<String> readStringListOrNull(Map<String, Object> r, String key) {
+        Object v = r == null ? null : r.get(key);
+        if (v == null) {
+            return null;
+        }
+        List<String> out = new ArrayList<>();
+        if (v instanceof List<?> list) {
+            for (Object o : list) {
+                if (o != null) {
+                    String s = String.valueOf(o);
+                    if (!s.isBlank()) {
+                        out.add(s);
+                    }
+                }
+            }
+        } else {
+            String s = String.valueOf(v);
+            if (!s.isBlank()) {
+                out.add(s);
+            }
+        }
+        return out.isEmpty() ? null : out;
     }
 
     private static Boolean readBoolean(Map<String, Object> r, String key) {
