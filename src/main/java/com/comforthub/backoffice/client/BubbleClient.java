@@ -345,6 +345,29 @@ public class BubbleClient {
         }
     }
 
+    /**
+     * Lightweight connectivity/auth check used by
+     * {@link com.comforthub.backoffice.health.BubbleHealthIndicator} (issue
+     * #3). Performs a minimal {@code GET /user?limit=1} — reusing this
+     * class's existing RestClient + {@link #addAuthHeader} setup rather than
+     * opening a second HTTP client just for health polling — so a single
+     * call exercises both network reachability and Bubble token validity.
+     *
+     * <p>Unlike the other methods here, this deliberately does <em>not</em>
+     * catch/swallow exceptions: the caller (the health indicator) needs to
+     * see failures in order to report {@code DOWN}.
+     */
+    public void ping() {
+        addAuthHeader(
+                restClient.get()
+                        .uri(uriBuilder -> uriBuilder.path("/user")
+                                .queryParam("limit", "1")
+                                .build())
+                        .accept(MediaType.APPLICATION_JSON))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BubbleShiftPostPayload {
