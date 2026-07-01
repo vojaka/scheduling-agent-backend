@@ -36,10 +36,10 @@ public class InventoryBubbleMapper {
 
     // ===== Inferred Bubble field keys (UNVERIFIED — see class doc) =====
 
-    // CRITICAL field to verify: the company/merchant scope key. Copied from the
-    // Order mapper's confirmed "Merchant" key — the order's scope field is
-    // literally "Merchant", so inventory most likely uses the same merchant ref.
-    static final String F_COMPANY = "Merchant";
+    // Company/merchant scope key. VERIFIED against the Bubble `inventory` type:
+    // the field is "Company" (not "Merchant" as the order type uses). Using
+    // "Merchant" here caused: 404 "Field not found Merchant for type inventory".
+    static final String F_COMPANY = "Company";
 
     // Display-name key for the catalog item name (Order uses "Type"/"Store"
     // style title-case display names; "Name" is Bubble's default for a text

@@ -37,13 +37,12 @@ public class OfferingBubbleMapper {
     // ===== INFERRED Bubble field keys (display-name guesses — UNVERIFIED) =====
 
     /**
-     * CRITICAL-to-verify. Owning merchant — the scope key. Inferred to be
-     * literally {@code "Merchant"} because that is the confirmed scope field on
-     * the Bubble {@code order} object (see {@code OrderBubbleMapper.F_COMPANY}),
-     * and scoping is consistent across this app's objects. UNVERIFIED for
-     * offerings: could also be {@code "Company"}.
+     * Owning-company scope key. VERIFIED against the Bubble {@code offerings}
+     * type: the field is {@code "Belongs to"} (it holds the company id), not
+     * {@code "Merchant"} (order) or {@code "Company"} (inventory). Using
+     * {@code "Merchant"} caused: 404 "Field not found Merchant for type offerings".
      */
-    static final String F_COMPANY = "Merchant";
+    static final String F_COMPANY = "Belongs to";
 
     /** Inferred from the entity {@code name} column. UNVERIFIED. */
     static final String F_NAME = "Name";
