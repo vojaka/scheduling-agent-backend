@@ -148,6 +148,11 @@ jobs:
             cd /app/scheduling-agent-backend
             chmod +x run_sync.sh monitor_containers.sh
             
+            # Inject DEPLOY_WEBHOOK_URL into .env if present in secrets
+            if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
+              grep -q "DEPLOY_WEBHOOK_URL" .env && sed -i 's|DEPLOY_WEBHOOK_URL=.*|DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}|' .env || echo "DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}" >> .env
+            fi
+            
             # Setup sync cron
             (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
             
