@@ -55,19 +55,26 @@ public class ShiftService {
 
     @Transactional
     public Optional<BubbleShiftEntity> update(UUID id, ShiftWriteRequest request) {
-        return shiftRepository.findById(id).map(entity -> {
+        Optional<String> companyIdOpt = currentUserService.currentCompanyId();
+        return shiftRepository.findById(id).flatMap(entity -> {
+            if (companyIdOpt.isPresent() && !companyIdOpt.get().equals(entity.getAssignedCompany())) {
+                return Optional.empty();
+            }
             applyRequest(entity, request);
-            return shiftRepository.save(entity);
+            return Optional.of(shiftRepository.save(entity));
         });
     }
 
     @Transactional
     public boolean delete(UUID id) {
-        if (!shiftRepository.existsById(id)) {
-            return false;
-        }
-        shiftRepository.deleteById(id);
-        return true;
+        Optional<String> companyIdOpt = currentUserService.currentCompanyId();
+        return shiftRepository.findById(id).map(entity -> {
+            if (companyIdOpt.isPresent() && !companyIdOpt.get().equals(entity.getAssignedCompany())) {
+                return false;
+            }
+            shiftRepository.delete(entity);
+            return true;
+        }).orElse(false);
     }
 
     @Transactional
