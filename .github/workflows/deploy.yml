@@ -23,13 +23,24 @@ jobs:
 #      - name: Run Maven Tests
 #        run: mvn clean test
 
+      - name: Backup Current Directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            mkdir -p /app/scheduling-agent-backend
+            rm -rf /app/scheduling-agent-backend_backup
+            cp -r /app/scheduling-agent-backend /app/scheduling-agent-backend_backup
+
       - name: Copy Files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
+          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
           target: "/app/scheduling-agent-backend"
           rm: false
 
@@ -67,6 +78,65 @@ jobs:
             docker compose up -d
             docker compose ps
 
+      - name: Verify Backend Health
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "Performing health check smoke test..."
+            for i in {1..15}; do
+              STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/schedule/sync || true)
+              if [ "$STATUS_CODE" = "401" ]; then
+                echo "Backend is healthy! Status code: $STATUS_CODE"
+                exit 0
+              fi
+              echo "Backend is not ready yet (status: $STATUS_CODE). Retrying in 3 seconds (Attempt $i/15)..."
+              sleep 3
+            done
+            echo "Backend health check failed!"
+            exit 1
+
+      - name: Rollback on Deploy Failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "Deploy failed. Rolling back to previous version..."
+            set -e
+            if [ -d /app/scheduling-agent-backend_backup ]; then
+              cd /app/scheduling-agent-backend
+              docker compose down
+              
+              # Restore code directory
+              rm -rf /app/scheduling-agent-backend/*
+              cp -r /app/scheduling-agent-backend_backup/* /app/scheduling-agent-backend/
+              
+              # Start services to boot up database
+              docker compose up -d db
+              sleep 5
+              
+              # Restore database from snapshot
+              LATEST_BACKUP=$(ls -t backups/backup_*.sql | head -n1)
+              if [ -n "$LATEST_BACKUP" ]; then
+                echo "Restoring database from $LATEST_BACKUP..."
+                docker compose exec -T db psql -U postgres postgres < "$LATEST_BACKUP"
+              fi
+              
+              # Rebuild and restart services
+              docker compose build backend
+              docker compose up -d
+              docker compose ps
+              echo "Rollback successfully completed."
+            else
+              echo "No backup found to rollback to."
+              exit 1
+            fi
+
       - name: Setup Cron Job and Permissions
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -80,3 +150,37 @@ jobs:
             
             # Add to crontab if not exists
             (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
+
+      - name: Sync Metabase Dashboards (Dev -> Live)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/scheduling-agent-backend
+            export $(grep -v '^#' .env | xargs)
+            python3 sync_metabase_live.py
+
+      - name: Notify Webhook on Success
+        if: success()
+        run: |
+          if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
+            curl -H "Content-Type: application/json" -X POST -d '{
+              "content": "🟢 **ComfortHub Backend Deploy SUCCESS**\n- **Repo**: `${{ github.repository }}`\n- **Branch**: `main`\n- **Commit**: `${{ github.event.head_commit.message }}`\n- **Actor**: `${{ github.actor }}`"
+            }' "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+          else
+            echo "No DEPLOY_WEBHOOK_URL secret found. Skipping notification."
+          fi
+
+      - name: Notify Webhook on Failure
+        if: failure()
+        run: |
+          if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
+            curl -H "Content-Type: application/json" -X POST -d '{
+              "content": "🔴 **ComfortHub Backend Deploy FAILED & ROLLED BACK**\n- **Repo**: `${{ github.repository }}`\n- **Branch**: `main`\n- **Commit**: `${{ github.event.head_commit.message }}`\n- **Actor**: `${{ github.actor }}`"
+            }' "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+          else
+            echo "No DEPLOY_WEBHOOK_URL secret found. Skipping notification."
+          fi
