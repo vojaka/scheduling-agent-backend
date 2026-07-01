@@ -102,7 +102,8 @@ def main():
             "V3__promote_schema.sql",
             "V4__add_companies.sql",
             "V5__add_company_reg_code.sql",
-            "V6__add_company_is_deleted.sql"
+            "V6__add_company_is_deleted.sql",
+            "V7__create_payments_tables.sql"
         ]
         
         for mig in migrations:
@@ -123,6 +124,7 @@ def main():
     # 1. Truncate all tables
     print("Truncating tables...")
     tables_to_truncate = [
+        "disputes", "payment_events", "payments", "payment_tokens",
         "bookings", "orders", "stock", "inventory_offerings", "shifts", 
         "inventory", "offerings", "categories", "wage_rates", "stores", 
         "users", "availability", "companies"

@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,7 +23,7 @@ public class BubbleWageRate {
 
     @JsonProperty("Rate")
     @JsonAlias({"rate", "rate_number"})
-    private Double rate;
+    private BigDecimal rate;
 
     @JsonProperty("User")
     @JsonAlias({"user", "user_user"})

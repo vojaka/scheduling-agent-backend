@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -24,7 +27,8 @@ public class BubbleWageRateEntity {
     private String company;
 
     @Column(name = "rate")
-    private Double rate;
+    @JdbcTypeCode(SqlTypes.DOUBLE)
+    private BigDecimal rate;
 
     @Column(name = "user_id")
     private String userId;
