@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout repository
@@ -43,6 +44,31 @@ jobs:
           source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,monitor_containers.sh,monitor_ssl.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
           target: "/app/scheduling-agent-backend"
           rm: false
+
+      - name: Generate .env File on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/scheduling-agent-backend
+            
+            # Create/overwrite the .env file with secrets
+            cat << '_EOF_SECRETS_' > .env
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            PGRST_JWT_SECRET=${{ secrets.PGRST_JWT_SECRET }}
+            APP_API_KEY=${{ secrets.APP_API_KEY }}
+            BUBBLE_API_TOKEN=${{ secrets.BUBBLE_API_TOKEN }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            METABASE_EMBED_SECRET=${{ secrets.METABASE_EMBED_SECRET }}
+            DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}
+            _EOF_SECRETS_
+            
+            # Restrict permissions
+            chmod 600 .env
+            echo ".env file generated and secured with 600 permissions."
 
       - name: Backup Database on VPS
         uses: appleboy/ssh-action@v1.0.3
@@ -147,11 +173,6 @@ jobs:
             set -e
             cd /app/scheduling-agent-backend
             chmod +x run_sync.sh monitor_containers.sh monitor_ssl.sh
-            
-            # Inject DEPLOY_WEBHOOK_URL into .env if present in secrets
-            if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
-              grep -q "DEPLOY_WEBHOOK_URL" .env && sed -i 's|DEPLOY_WEBHOOK_URL=.*|DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}|' .env || echo "DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}" >> .env
-            fi
             
             # Setup sync cron
             (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
