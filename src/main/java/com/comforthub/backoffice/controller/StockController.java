@@ -19,23 +19,17 @@ import java.util.Optional;
  * Stock — per-store inventory quantity levels.
  *
  * <p>Phase 5: Bubble is the source of truth. This controller <b>proxies the
- * Bubble Data API</b> for both reads and writes and never touches PostgreSQL
- * (which is analytics-only, fed by the hourly ETL). Every call is scoped to the
- * caller's company via a Bubble {@code constraints} filter.
+ * Bubble Data API</b> for reads and writes and never touches PostgreSQL.
  *
- * <p>The REST contract is unchanged from the former JPA implementation (same
- * routes, params and JSON shape, including the Spring Data {@code Page}
- * envelope), so the React UI needs no changes. The only wire-level difference
- * is that the {@code storeId}/{@code inventoryId} path/query values are now
- * Bubble text ids (strings) rather than UUIDs. The Bubble field-alias mapping
- * lives entirely in {@link StockBubbleMapper}.
+ * <p><b>Company scoping is indirect.</b> The Bubble {@code stock} type has no
+ * merchant field — it links only to a {@code Store}. So every call first
+ * resolves the caller's company's store ids (Bubble {@code store} where
+ * {@code Company = companyId}) and constrains stock to {@code Store in [...]}.
  *
- * <p><b>Unsupported {@code name} filter:</b> {@code name} filters by the
- * <i>linked inventory's</i> name — a cross-entity join a single Bubble
- * constraint on the {@code stock} type cannot express. As in
- * {@code OrderController}, the param is accepted but ignored (see
- * {@link StockBubbleMapper#buildConstraints}); a follow-up should resolve
- * matching inventory ids by name first, then constrain on them.
+ * <p>The REST contract is unchanged (same routes/params and Spring {@code Page}
+ * envelope); {@code storeId}/{@code inventoryId} are now Bubble text ids. The
+ * {@code name} (inventory-name) filter is a cross-entity join and is accepted
+ * but ignored (see {@link StockBubbleMapper}).
  */
 @RestController
 @RequestMapping("/api/stock")
@@ -57,14 +51,9 @@ public class StockController {
     }
 
     /**
-     * List stock entries for the company.
-     * Optional {@code storeId} and {@code name} (inventory name substring) params.
-     * Bubble cursor pagination is mapped onto the Spring Data {@link Page}
-     * envelope the UI expects.
-     *
-     * <p>Note: {@code name} is accepted but NOT applied — it filters by the
-     * linked inventory's name, which a single stock-type constraint cannot
-     * express (see class doc).
+     * List stock entries for the company (scoped through its stores).
+     * Optional {@code storeId} restricts to one of the company's stores;
+     * {@code name} is accepted but not applied (cross-entity — see class doc).
      */
     @GetMapping
     public Page<StockDto> getStock(@RequestParam(required = false) String storeId,
@@ -74,10 +63,18 @@ public class StockController {
         if (companyOpt.isEmpty()) {
             return Page.empty(pageable);
         }
+        String companyId = companyOpt.get();
 
-        // `name` is intentionally passed through but ignored by the mapper.
-        String constraints = mapper.buildConstraints(companyOpt.get(), storeId, name);
+        List<String> storeIds = companyStoreIds(companyId);
+        if (storeId != null && !storeId.isBlank()) {
+            // Restrict to the requested store only if it belongs to the company.
+            storeIds = storeIds.contains(storeId) ? List.of(storeId) : List.of();
+        }
+        if (storeIds.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
 
+        String constraints = mapper.stockByStoresConstraints(storeIds);
         int limit = Math.min(pageable.getPageSize(), BUBBLE_MAX_LIMIT);
         int cursor = (int) pageable.getOffset();
 
@@ -86,67 +83,77 @@ public class StockController {
                 StockBubbleMapper.SORT_CREATED_DATE, true);
 
         List<StockDto> content = result.getResults().stream()
-                .map(mapper::toDto)
+                .map(r -> {
+                    StockDto dto = mapper.toDto(r);
+                    dto.setCompanyId(companyId); // stock has no merchant field of its own
+                    return dto;
+                })
                 .toList();
 
-        // Bubble reports the count in this page and how many remain after it;
-        // total = items before this page + this page + items remaining.
         long total = (long) cursor + result.getCount() + result.getRemaining();
         return new PageImpl<>(content, pageable, total);
     }
 
     /**
-     * Update the quantity for a specific store + inventory combination.
-     * Creates the Bubble {@code stock} row if it doesn't exist yet (upsert).
-     * Body: {@code { "quantity": 42 }}.
-     *
-     * <p>{@code storeId}/{@code inventoryId} are Bubble text ids.
+     * Update the quantity for a store + inventory combination (upsert).
+     * Body: {@code { "quantity": 42 }}. The store must belong to the caller's
+     * company; {@code storeId}/{@code inventoryId} are Bubble text ids.
      */
     @PutMapping("/{storeId}/{inventoryId}")
     public ResponseEntity<StockDto> updateQuantity(@PathVariable String storeId,
                                                    @PathVariable String inventoryId,
                                                    @RequestBody StockDto body) {
-        return currentUserService.currentCompanyId()
-                .map(companyId -> {
-                    Integer quantity = body.getQuantity();
+        Optional<String> companyOpt = currentUserService.currentCompanyId();
+        if (companyOpt.isEmpty()) {
+            return ResponseEntity.status(403).build();
+        }
+        String companyId = companyOpt.get();
 
-                    // Locate an existing row for this company + store + inventory.
-                    String constraints = mapper.findByStoreAndInventory(
-                            companyId, storeId, inventoryId);
-                    BubbleListResult existing = bubbleClient.list(
-                            StockBubbleMapper.TYPE, constraints, 0, 1);
+        // The store must be one of the company's stores.
+        if (!companyStoreIds(companyId).contains(storeId)) {
+            return ResponseEntity.notFound().build();
+        }
+        Integer quantity = body.getQuantity();
 
-                    String id;
-                    if (!existing.getResults().isEmpty()) {
-                        // Update the found row's quantity.
-                        id = mapper.toDto(existing.getResults().get(0)).getId();
-                        bubbleClient.update(StockBubbleMapper.TYPE, id,
-                                mapper.quantityUpdateBody(quantity));
-                    } else {
-                        // No row yet — create one, company-scoped.
-                        id = bubbleClient.create(StockBubbleMapper.TYPE,
-                                mapper.toCreateBody(companyId, storeId, inventoryId, quantity));
-                    }
+        // Locate an existing row for this store + inventory.
+        BubbleListResult existing = bubbleClient.list(
+                StockBubbleMapper.TYPE,
+                mapper.findByStoreAndInventory(storeId, inventoryId), 0, 1);
 
-                    return ResponseEntity.ok(reload(id, companyId, storeId, inventoryId, quantity));
-                })
-                .orElse(ResponseEntity.status(403).build());
+        String id;
+        if (!existing.getResults().isEmpty()) {
+            id = mapper.toDto(existing.getResults().get(0)).getId();
+            bubbleClient.update(StockBubbleMapper.TYPE, id, mapper.quantityUpdateBody(quantity));
+        } else {
+            id = bubbleClient.create(StockBubbleMapper.TYPE,
+                    mapper.toCreateBody(storeId, inventoryId, quantity));
+        }
+
+        return ResponseEntity.ok(reload(id, companyId, storeId, inventoryId, quantity));
     }
 
     // ------------------------------------------------------------- helpers
 
+    /** The Bubble store ids that belong to {@code companyId}. */
+    private List<String> companyStoreIds(String companyId) {
+        BubbleListResult stores = bubbleClient.list(
+                StockBubbleMapper.STORE_TYPE,
+                mapper.storeCompanyConstraints(companyId), 0, BUBBLE_MAX_LIMIT);
+        return mapper.storeIdsOf(stores.getResults());
+    }
+
     /**
-     * Re-fetch the stock row from Bubble so the response reflects persisted
-     * state. Falls back to a DTO assembled from the request when the read-back
-     * fails — e.g. when privacy rules hide the freshly written record from this
-     * token.
+     * Re-fetch the stock row so the response reflects persisted state; falls back
+     * to a DTO assembled from the request if the read-back fails.
      */
     private StockDto reload(String id, String companyId, String storeId,
                             String inventoryId, Integer quantity) {
         if (id != null) {
             Map<String, Object> record = bubbleClient.get(StockBubbleMapper.TYPE, id);
             if (record != null) {
-                return mapper.toDto(record);
+                StockDto dto = mapper.toDto(record);
+                dto.setCompanyId(companyId);
+                return dto;
             }
         }
         StockDto fallback = new StockDto();

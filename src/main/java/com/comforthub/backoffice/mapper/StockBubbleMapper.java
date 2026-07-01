@@ -12,35 +12,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Translates between the backoffice {@link StockDto} (the UI contract) and the
- * Bubble {@code stock} object. This is the single place that knows Bubble's
- * field keys, so adapting to schema changes touches only this file.
+ * Translates between the backoffice {@link StockDto} and the Bubble
+ * {@code stock} object. Single home of stock's Bubble field keys.
  *
- * <p>Built to the same conventions as {@link OrderBubbleMapper}: this app's
- * Data API exposes <b>display-name keys</b> (e.g. {@code "Merchant"},
- * {@code "Store"}) and constraints use those same keys.
+ * <p><b>Scoping (confirmed from live data):</b> the Bubble {@code stock} type has
+ * <b>no merchant/company field</b> — it links only to a {@code Store}. So a
+ * company is scoped <i>indirectly</i>: resolve the company's stores (Bubble
+ * {@code store} where {@code Company = companyId}), then constrain stock to
+ * {@code Store in [those store ids]}. See {@code StockController}.
  *
- * <p><b>CRITICAL — the field keys below are INFERRED, not confirmed from live
- * Bubble {@code stock} records.</b> Each is tagged {@code INFERRED} and must be
- * verified against the real Bubble schema before this ships:
- * <ul>
- *   <li>{@link #F_COMPANY} {@code "Merchant"} — the scope key, guessed to match
- *       {@code OrderBubbleMapper.F_COMPANY}. The stock object may instead scope
- *       indirectly through its store (no direct merchant field), in which case
- *       the company constraint here will silently match nothing — VERIFY.</li>
- *   <li>{@link #F_STORE} {@code "Store"} — reference to the store.</li>
- *   <li>{@link #F_INVENTORY} {@code "Inventory"} — reference to the inventory
- *       item this stock row tracks.</li>
- *   <li>{@link #F_QUANTITY} {@code "Quantity"} — the on-hand count (number).</li>
- * </ul>
+ * <p>Confirmed stock field display-keys (from the App-data view): {@code Store},
+ * {@code Inventory} (references), {@code "Qnty in stock"} (the quantity),
+ * {@code Created Date} / {@code Modified Date}. The store-side company key
+ * ({@code "Company"}) comes from the existing {@code BubbleStore} mapping and
+ * should still be verified.
  *
- * <p><b>Unsupported filter:</b> the {@code GET} {@code name} filter is by the
- * <i>linked inventory's</i> name — a cross-entity join that a single Bubble
- * constraint on the {@code stock} type cannot express. Mirroring how
- * {@link OrderBubbleMapper} handles its unmappable filters, {@code name} is
- * accepted but never applied as a constraint (see {@link #buildConstraints}).
- * Follow-up: resolve matching inventory ids by name first, then constrain
- * {@link #F_INVENTORY} {@code in} that id list.
+ * <p>The {@code GET name} filter targets the <i>linked inventory's</i> name — a
+ * cross-entity join a single stock constraint can't express — so it is accepted
+ * but ignored (follow-up: resolve inventory ids by name first).
  */
 @Component
 public class StockBubbleMapper {
@@ -48,11 +37,16 @@ public class StockBubbleMapper {
     /** Bubble Data API object type. */
     public static final String TYPE = "stock";
 
-    // ===== Bubble field keys — ALL INFERRED, verify against live records =====
-    static final String F_COMPANY   = "Merchant";    // INFERRED — owning merchant / scope key (CRITICAL to verify)
-    static final String F_STORE     = "Store";       // INFERRED — store reference
-    static final String F_INVENTORY = "Inventory";   // INFERRED — inventory item reference
-    static final String F_QUANTITY  = "Quantity";    // INFERRED — on-hand count (number)
+    // ===== Confirmed stock field keys (from the live App-data view) =====
+    static final String F_STORE     = "Store";           // store reference
+    static final String F_INVENTORY = "Inventory";       // inventory item reference
+    static final String F_QUANTITY  = "Qnty in stock";   // on-hand count (number)
+
+    // ===== Store type, used to resolve which stores belong to the company =====
+    /** Bubble object type for stores. */
+    public static final String STORE_TYPE = "store";
+    /** Store's company/merchant field — from the BubbleStore mapping (verify). */
+    static final String STORE_COMPANY_FIELD = "Company";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
@@ -65,11 +59,13 @@ public class StockBubbleMapper {
 
     // ---------------------------------------------------------------- reads
 
-    /** Map one Bubble {@code stock} record to the UI DTO. */
+    /**
+     * Map one Bubble {@code stock} record to the UI DTO. {@code companyId} is set
+     * by the controller (stock carries no merchant field of its own).
+     */
     public StockDto toDto(Map<String, Object> r) {
         StockDto dto = new StockDto();
         dto.setId(readString(r, "_id"));
-        dto.setCompanyId(readString(r, F_COMPANY));
         dto.setStoreId(readString(r, F_STORE));
         dto.setInventoryId(readString(r, F_INVENTORY));
         dto.setQuantity(readInteger(r, F_QUANTITY));
@@ -77,49 +73,43 @@ public class StockBubbleMapper {
         return dto;
     }
 
-    // --------------------------------------------------------------- writes
-
-    /**
-     * Bubble constraints JSON scoping to {@code companyId} (the merchant) plus
-     * the optional store filter.
-     *
-     * <p>The {@code name} (inventory-name substring) filter is intentionally
-     * NOT included: it targets the linked inventory record's name, a
-     * cross-entity join that a single constraint on the {@code stock} type
-     * cannot express (see class doc). It is accepted by the controller but
-     * ignored pending the resolve-inventory-ids-by-name follow-up.
-     */
-    public String buildConstraints(String companyId, String storeId, String name) {
-        List<Map<String, Object>> constraints = new ArrayList<>();
-        constraints.add(constraint(F_COMPANY, "equals", companyId));
-        if (hasText(storeId)) {
-            constraints.add(constraint(F_STORE, "equals", storeId));
+    /** Extract the {@code _id}s from a page of Bubble {@code store} records. */
+    public List<String> storeIdsOf(List<Map<String, Object>> storeRecords) {
+        List<String> ids = new ArrayList<>();
+        if (storeRecords != null) {
+            for (Map<String, Object> s : storeRecords) {
+                String id = readString(s, "_id");
+                if (id != null) {
+                    ids.add(id);
+                }
+            }
         }
-        // `name` deliberately not applied — see method/class doc.
-        return writeConstraints(constraints);
+        return ids;
     }
 
-    /**
-     * Constraints that locate the single stock row for a given
-     * company + store + inventory combination — used by the PUT upsert to find
-     * an existing row before deciding to update vs. create.
-     */
-    public String findByStoreAndInventory(String companyId, String storeId, String inventoryId) {
+    // ------------------------------------------------------- constraints/writes
+
+    /** Constraints selecting the stores that belong to {@code companyId}. */
+    public String storeCompanyConstraints(String companyId) {
+        return writeConstraints(List.of(constraint(STORE_COMPANY_FIELD, "equals", companyId)));
+    }
+
+    /** Constraints selecting stock rows whose store is one of {@code storeIds}. */
+    public String stockByStoresConstraints(List<String> storeIds) {
+        return writeConstraints(List.of(constraint(F_STORE, "in", storeIds)));
+    }
+
+    /** Constraints locating the single stock row for a store + inventory pair. */
+    public String findByStoreAndInventory(String storeId, String inventoryId) {
         List<Map<String, Object>> constraints = new ArrayList<>();
-        constraints.add(constraint(F_COMPANY, "equals", companyId));
         constraints.add(constraint(F_STORE, "equals", storeId));
         constraints.add(constraint(F_INVENTORY, "equals", inventoryId));
         return writeConstraints(constraints);
     }
 
-    /**
-     * Body for POST /obj/stock — company-scoped row for a store + inventory with
-     * an initial quantity (defaults to 0, matching the old {@code @PrePersist}).
-     */
-    public Map<String, Object> toCreateBody(String companyId, String storeId,
-                                            String inventoryId, Integer quantity) {
+    /** Body for POST /obj/stock — a row for a store + inventory with a quantity. */
+    public Map<String, Object> toCreateBody(String storeId, String inventoryId, Integer quantity) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put(F_COMPANY, companyId);
         body.put(F_STORE, storeId);
         body.put(F_INVENTORY, inventoryId);
         body.put(F_QUANTITY, quantity != null ? quantity : 0);
@@ -131,11 +121,6 @@ public class StockBubbleMapper {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(F_QUANTITY, quantity != null ? quantity : 0);
         return body;
-    }
-
-    /** The merchant a Bubble record belongs to (for ownership checks). */
-    public String companyOf(Map<String, Object> record) {
-        return readString(record, F_COMPANY);
     }
 
     // --------------------------------------------------------------- helpers
@@ -184,7 +169,6 @@ public class StockBubbleMapper {
             return null;
         }
         try {
-            // Bubble may surface numbers as "42" or "42.0" strings.
             return (int) Math.round(Double.parseDouble(s));
         } catch (NumberFormatException e) {
             return null;
@@ -205,9 +189,5 @@ public class StockBubbleMapper {
         }
         String s = String.valueOf(v);
         return s.isBlank() ? null : s;
-    }
-
-    private static boolean hasText(String s) {
-        return s != null && !s.isBlank();
     }
 }
