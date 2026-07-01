@@ -165,22 +165,38 @@ jobs:
 
       - name: Notify Webhook on Success
         if: success()
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          ACTOR: ${{ github.actor }}
         run: |
-          if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
-            curl -H "Content-Type: application/json" -X POST -d '{
-              "content": "🟢 **ComfortHub Backend Deploy SUCCESS**\n- **Repo**: `${{ github.repository }}`\n- **Branch**: `main`\n- **Commit**: `${{ github.event.head_commit.message }}`\n- **Actor**: `${{ github.actor }}`"
-            }' "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+          if [ -n "$DEPLOY_WEBHOOK_URL" ]; then
+            PAYLOAD=$(jq -n \
+              --arg repo "$REPO" \
+              --arg msg "$COMMIT_MSG" \
+              --arg actor "$ACTOR" \
+              '{content: "🟢 **ComfortHub Backend Deploy SUCCESS**\n- **Repo**: `\($repo)`\n- **Branch**: `main`\n- **Commit**: `\($msg)`\n- **Actor**: `\($actor)`"}')
+            curl -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DEPLOY_WEBHOOK_URL"
           else
             echo "No DEPLOY_WEBHOOK_URL secret found. Skipping notification."
           fi
 
       - name: Notify Webhook on Failure
         if: failure()
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          ACTOR: ${{ github.actor }}
         run: |
-          if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
-            curl -H "Content-Type: application/json" -X POST -d '{
-              "content": "🔴 **ComfortHub Backend Deploy FAILED & ROLLED BACK**\n- **Repo**: `${{ github.repository }}`\n- **Branch**: `main`\n- **Commit**: `${{ github.event.head_commit.message }}`\n- **Actor**: `${{ github.actor }}`"
-            }' "${{ secrets.DEPLOY_WEBHOOK_URL }}"
+          if [ -n "$DEPLOY_WEBHOOK_URL" ]; then
+            PAYLOAD=$(jq -n \
+              --arg repo "$REPO" \
+              --arg msg "$COMMIT_MSG" \
+              --arg actor "$ACTOR" \
+              '{content: "🔴 **ComfortHub Backend Deploy FAILED & ROLLED BACK**\n- **Repo**: `\($repo)`\n- **Branch**: `main`\n- **Commit**: `\($msg)`\n- **Actor**: `\($actor)`"}')
+            curl -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$DEPLOY_WEBHOOK_URL"
           else
             echo "No DEPLOY_WEBHOOK_URL secret found. Skipping notification."
           fi
