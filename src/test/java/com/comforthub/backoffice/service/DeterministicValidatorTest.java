@@ -18,7 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (max duration, min rest, weekly cap) are exercised incidentally via the compliant baseline case.
  *
  * <p>All shifts land on 2026-06-29 (a Monday) through 2026-07-05 (a Sunday) in Europe/Tallinn, to
- * make the day-of-week arithmetic in the validator easy to reason about in each test.
+ * make the day-of-week arithmetic in the validator easy to reason about in each test. Tallinn is
+ * UTC+3 (EEST) for this whole range (DST runs late March - late October), so UTC times in these
+ * fixtures are always 3 hours behind the local time the validator actually checks against.
  */
 class DeterministicValidatorTest {
 
@@ -74,8 +76,8 @@ class DeterministicValidatorTest {
         availability.setWorkdayStartHour(9);
         availability.setWorkdayEndHour(17);
 
-        // Monday 2026-06-29, but starts at 06:00 - before the 09:00 workday start.
-        BubbleShift s = shift("w1", "2026-06-29T06:00:00Z", "2026-06-29T10:00:00Z");
+        // Monday 2026-06-29, 05:00-07:00 UTC = 08:00-10:00 Europe/Tallinn - starts before the 09:00 workday start.
+        BubbleShift s = shift("w1", "2026-06-29T05:00:00Z", "2026-06-29T07:00:00Z");
 
         ValidationReport report = validator.validate(List.of(s), List.of(w1), Map.of("w1", availability));
 
@@ -91,7 +93,7 @@ class DeterministicValidatorTest {
         availability.setWorkdayStartHour(6);
         availability.setWorkdayEndHour(18);
 
-        // Monday 2026-06-29, 08:00-12:00 UTC = 11:00-15:00 Europe/Tallinn (summer, UTC+3) - within window.
+        // Monday 2026-06-29, 08:00-12:00 UTC = 11:00-15:00 Europe/Tallinn - within the 06:00-18:00 window.
         BubbleShift s = shift("w1", "2026-06-29T08:00:00Z", "2026-06-29T12:00:00Z");
 
         ValidationReport report = validator.validate(List.of(s), List.of(w1), Map.of("w1", availability));
@@ -111,7 +113,7 @@ class DeterministicValidatorTest {
         availability.setWeekendStartHour(10);
         availability.setWeekendEndHour(16);
 
-        // Saturday 2026-07-04, 11:00-14:00 Europe/Tallinn (UTC+3) - within the weekend window.
+        // Saturday 2026-07-04, 08:00-11:00 UTC = 11:00-14:00 Europe/Tallinn - within the weekend window.
         BubbleShift s = shift("w1", "2026-07-04T08:00:00Z", "2026-07-04T11:00:00Z");
 
         ValidationReport report = validator.validate(List.of(s), List.of(w1), Map.of("w1", availability));
