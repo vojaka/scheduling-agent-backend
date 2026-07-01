@@ -1,0 +1,633 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< com.comforthub:comforthub-backoffice >----------------
+[INFO] Building comforthub-backoffice 1.0.0
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- clean:3.3.2:clean (default-clean) @ comforthub-backoffice ---
+[INFO] Deleting /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/target
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ comforthub-backoffice ---
+[INFO] Copying 1 resource from src/main/resources to target/classes
+[INFO] Copying 8 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ comforthub-backoffice ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 128 source files with javac [debug release 17] to target/classes
+[INFO] Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[353,27] method readString(java.util.Map<java.lang.String,java.lang.Object>,java.lang.String) is already defined in class com.comforthub.backoffice.mapper.OfferingBubbleMapper
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[117,12] cannot find symbol
+  symbol:   method setId(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[118,12] cannot find symbol
+  symbol:   method setBubbleId(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[119,12] cannot find symbol
+  symbol:   method setCompanyId(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[120,12] cannot find symbol
+  symbol:   method setName(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[121,12] cannot find symbol
+  symbol:   method setType(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[122,12] cannot find symbol
+  symbol:   method setStatus(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[123,12] cannot find symbol
+  symbol:   method setDeliveryType(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[124,12] cannot find symbol
+  symbol:   method setPayOptions(java.lang.String[])
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[125,12] cannot find symbol
+  symbol:   method setPriceSource(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[126,12] cannot find symbol
+  symbol:   method setDefaultType(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[127,12] cannot find symbol
+  symbol:   method setLimitedVisibility(java.lang.Boolean)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[128,12] cannot find symbol
+  symbol:   method setUnlimitedQuantity(java.lang.Boolean)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[129,12] cannot find symbol
+  symbol:   method setQuantityRequired(java.lang.Boolean)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[130,12] cannot find symbol
+  symbol:   method setPrice(java.math.BigDecimal)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[131,12] cannot find symbol
+  symbol:   method setDefaultOffering(java.lang.Boolean)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[132,12] cannot find symbol
+  symbol:   method setMinQuantity(java.lang.Integer)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[133,12] cannot find symbol
+  symbol:   method setMaxQuantity(java.lang.Integer)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[134,12] cannot find symbol
+  symbol:   method setCreatedAt(java.lang.String)
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[161,39] cannot find symbol
+  symbol:   method getName()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[162,39] cannot find symbol
+  symbol:   method getType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[164,39] cannot find symbol
+  symbol:   method getStatus()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[164,58] cannot find symbol
+  symbol:   method getStatus()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[165,48] cannot find symbol
+  symbol:   method getDeliveryType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[166,46] cannot find symbol
+  symbol:   method getPayOptions()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[167,47] cannot find symbol
+  symbol:   method getPriceSource()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[168,47] cannot find symbol
+  symbol:   method getDefaultType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[169,53] cannot find symbol
+  symbol:   method getLimitedVisibility()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[170,53] cannot find symbol
+  symbol:   method getUnlimitedQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[171,52] cannot find symbol
+  symbol:   method getQuantityRequired()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[172,40] cannot find symbol
+  symbol:   method getPrice()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[173,51] cannot find symbol
+  symbol:   method getDefaultOffering()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[174,47] cannot find symbol
+  symbol:   method getMinQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[175,47] cannot find symbol
+  symbol:   method getMaxQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[187,39] cannot find symbol
+  symbol:   method getName()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[188,39] cannot find symbol
+  symbol:   method getType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[189,41] cannot find symbol
+  symbol:   method getStatus()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[190,48] cannot find symbol
+  symbol:   method getDeliveryType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[191,46] cannot find symbol
+  symbol:   method getPayOptions()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[192,47] cannot find symbol
+  symbol:   method getPriceSource()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[193,47] cannot find symbol
+  symbol:   method getDefaultType()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[194,53] cannot find symbol
+  symbol:   method getLimitedVisibility()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[195,53] cannot find symbol
+  symbol:   method getUnlimitedQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[196,52] cannot find symbol
+  symbol:   method getQuantityRequired()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[197,40] cannot find symbol
+  symbol:   method getPrice()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[198,51] cannot find symbol
+  symbol:   method getDefaultOffering()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[199,47] cannot find symbol
+  symbol:   method getMinQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[200,47] cannot find symbol
+  symbol:   method getMaxQuantity()
+  location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[29,23] cannot find symbol
+  symbol:   method getId()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[29,61] cannot find symbol
+  symbol:   method getId()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[30,23] cannot find symbol
+  symbol:   method getName()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[30,63] cannot find symbol
+  symbol:   method getName()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[36,32] cannot find symbol
+  symbol:   method getAssignedUser()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[40,65] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[40,97] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[53,62] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[53,84] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[58,76] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[58,108] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[82,52] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[82,80] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[83,49] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[83,74] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[93,72] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[93,95] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[100,41] cannot find symbol
+  symbol:   method getMaxHours()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[102,40] cannot find symbol
+  symbol:   method getMaxHours()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[106,55] cannot find symbol
+  symbol:   method getMaxHours()
+  location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[117,48] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[118,46] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[123,58] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[123,92] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[122,73] cannot find symbol
+  symbol:   method getAssignedUser()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/model/BubbleUser.java:[69,53] cannot find symbol
+  symbol:   method getEmail()
+  location: variable authentication of type com.comforthub.backoffice.model.BubbleUser.Authentication
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/model/BubbleUser.java:[70,34] cannot find symbol
+  symbol:   method getEmail()
+  location: variable authentication of type com.comforthub.backoffice.model.BubbleUser.Authentication
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/dto/ValidationReport.java:[19,18] cannot find symbol
+  symbol:   method getSeverity()
+  location: variable issue of type com.comforthub.backoffice.dto.ValidationIssue
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[64,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[64,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[65,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[84,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[84,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[85,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[104,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[104,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[105,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[124,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[124,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[125,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[144,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[144,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[145,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[165,45] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[165,79] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[166,32] cannot find symbol
+  symbol:   method getResponse()
+  location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,26] cannot find symbol
+  symbol:   method getAssignedUser()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,51] cannot find symbol
+  symbol:   method getStartTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,73] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[180,45] cannot find symbol
+  symbol:   method getAssignedCompany()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[181,42] cannot find symbol
+  symbol:   method getAssignedUser()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[182,37] cannot find symbol
+  symbol:   method getEndTime()
+  location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[INFO] 100 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.711 s
+[INFO] Finished at: 2026-07-01T21:29:45+03:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project comforthub-backoffice: Compilation failure: Compilation failure: 
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[353,27] method readString(java.util.Map<java.lang.String,java.lang.Object>,java.lang.String) is already defined in class com.comforthub.backoffice.mapper.OfferingBubbleMapper
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[117,12] cannot find symbol
+[ERROR]   symbol:   method setId(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[118,12] cannot find symbol
+[ERROR]   symbol:   method setBubbleId(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[119,12] cannot find symbol
+[ERROR]   symbol:   method setCompanyId(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[120,12] cannot find symbol
+[ERROR]   symbol:   method setName(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[121,12] cannot find symbol
+[ERROR]   symbol:   method setType(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[122,12] cannot find symbol
+[ERROR]   symbol:   method setStatus(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[123,12] cannot find symbol
+[ERROR]   symbol:   method setDeliveryType(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[124,12] cannot find symbol
+[ERROR]   symbol:   method setPayOptions(java.lang.String[])
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[125,12] cannot find symbol
+[ERROR]   symbol:   method setPriceSource(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[126,12] cannot find symbol
+[ERROR]   symbol:   method setDefaultType(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[127,12] cannot find symbol
+[ERROR]   symbol:   method setLimitedVisibility(java.lang.Boolean)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[128,12] cannot find symbol
+[ERROR]   symbol:   method setUnlimitedQuantity(java.lang.Boolean)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[129,12] cannot find symbol
+[ERROR]   symbol:   method setQuantityRequired(java.lang.Boolean)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[130,12] cannot find symbol
+[ERROR]   symbol:   method setPrice(java.math.BigDecimal)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[131,12] cannot find symbol
+[ERROR]   symbol:   method setDefaultOffering(java.lang.Boolean)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[132,12] cannot find symbol
+[ERROR]   symbol:   method setMinQuantity(java.lang.Integer)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[133,12] cannot find symbol
+[ERROR]   symbol:   method setMaxQuantity(java.lang.Integer)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[134,12] cannot find symbol
+[ERROR]   symbol:   method setCreatedAt(java.lang.String)
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[161,39] cannot find symbol
+[ERROR]   symbol:   method getName()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[162,39] cannot find symbol
+[ERROR]   symbol:   method getType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[164,39] cannot find symbol
+[ERROR]   symbol:   method getStatus()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[164,58] cannot find symbol
+[ERROR]   symbol:   method getStatus()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[165,48] cannot find symbol
+[ERROR]   symbol:   method getDeliveryType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[166,46] cannot find symbol
+[ERROR]   symbol:   method getPayOptions()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[167,47] cannot find symbol
+[ERROR]   symbol:   method getPriceSource()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[168,47] cannot find symbol
+[ERROR]   symbol:   method getDefaultType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[169,53] cannot find symbol
+[ERROR]   symbol:   method getLimitedVisibility()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[170,53] cannot find symbol
+[ERROR]   symbol:   method getUnlimitedQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[171,52] cannot find symbol
+[ERROR]   symbol:   method getQuantityRequired()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[172,40] cannot find symbol
+[ERROR]   symbol:   method getPrice()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[173,51] cannot find symbol
+[ERROR]   symbol:   method getDefaultOffering()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[174,47] cannot find symbol
+[ERROR]   symbol:   method getMinQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[175,47] cannot find symbol
+[ERROR]   symbol:   method getMaxQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[187,39] cannot find symbol
+[ERROR]   symbol:   method getName()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[188,39] cannot find symbol
+[ERROR]   symbol:   method getType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[189,41] cannot find symbol
+[ERROR]   symbol:   method getStatus()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[190,48] cannot find symbol
+[ERROR]   symbol:   method getDeliveryType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[191,46] cannot find symbol
+[ERROR]   symbol:   method getPayOptions()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[192,47] cannot find symbol
+[ERROR]   symbol:   method getPriceSource()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[193,47] cannot find symbol
+[ERROR]   symbol:   method getDefaultType()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[194,53] cannot find symbol
+[ERROR]   symbol:   method getLimitedVisibility()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[195,53] cannot find symbol
+[ERROR]   symbol:   method getUnlimitedQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[196,52] cannot find symbol
+[ERROR]   symbol:   method getQuantityRequired()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[197,40] cannot find symbol
+[ERROR]   symbol:   method getPrice()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[198,51] cannot find symbol
+[ERROR]   symbol:   method getDefaultOffering()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[199,47] cannot find symbol
+[ERROR]   symbol:   method getMinQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/mapper/OfferingBubbleMapper.java:[200,47] cannot find symbol
+[ERROR]   symbol:   method getMaxQuantity()
+[ERROR]   location: variable dto of type com.comforthub.backoffice.dto.OfferingDto
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[29,23] cannot find symbol
+[ERROR]   symbol:   method getId()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[29,61] cannot find symbol
+[ERROR]   symbol:   method getId()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[30,23] cannot find symbol
+[ERROR]   symbol:   method getName()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[30,63] cannot find symbol
+[ERROR]   symbol:   method getName()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[36,32] cannot find symbol
+[ERROR]   symbol:   method getAssignedUser()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[40,65] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[40,97] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[53,62] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[53,84] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[58,76] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[58,108] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[82,52] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[82,80] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[83,49] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[83,74] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[93,72] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[93,95] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable raw of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[100,41] cannot find symbol
+[ERROR]   symbol:   method getMaxHours()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[102,40] cannot find symbol
+[ERROR]   symbol:   method getMaxHours()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[106,55] cannot find symbol
+[ERROR]   symbol:   method getMaxHours()
+[ERROR]   location: variable worker of type com.comforthub.backoffice.model.BubbleUser
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[117,48] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[118,46] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[123,58] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[123,92] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/service/DeterministicValidator.java:[122,73] cannot find symbol
+[ERROR]   symbol:   method getAssignedUser()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/model/BubbleUser.java:[69,53] cannot find symbol
+[ERROR]   symbol:   method getEmail()
+[ERROR]   location: variable authentication of type com.comforthub.backoffice.model.BubbleUser.Authentication
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/model/BubbleUser.java:[70,34] cannot find symbol
+[ERROR]   symbol:   method getEmail()
+[ERROR]   location: variable authentication of type com.comforthub.backoffice.model.BubbleUser.Authentication
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/dto/ValidationReport.java:[19,18] cannot find symbol
+[ERROR]   symbol:   method getSeverity()
+[ERROR]   location: variable issue of type com.comforthub.backoffice.dto.ValidationIssue
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[64,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[64,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[65,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleUser>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[84,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[84,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[85,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleWageRate>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[104,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[104,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[105,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleStore>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[124,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[124,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[125,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleAvailability>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[144,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[144,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[145,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<com.comforthub.backoffice.model.BubbleShift>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[165,45] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[165,79] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[166,32] cannot find symbol
+[ERROR]   symbol:   method getResponse()
+[ERROR]   location: variable response of type com.comforthub.backoffice.client.BubbleClient.BubbleResponseWrapper<java.util.Map<java.lang.String,java.lang.Object>>
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,26] cannot find symbol
+[ERROR]   symbol:   method getAssignedUser()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,51] cannot find symbol
+[ERROR]   symbol:   method getStartTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[177,73] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[180,45] cannot find symbol
+[ERROR]   symbol:   method getAssignedCompany()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[181,42] cannot find symbol
+[ERROR]   symbol:   method getAssignedUser()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] /Users/kimsmirnov/claude/Projects/Backoffice/repos/comforthub-backoffice-backend/src/main/java/com/comforthub/backoffice/client/BubbleClient.java:[182,37] cannot find symbol
+[ERROR]   symbol:   method getEndTime()
+[ERROR]   location: variable shift of type com.comforthub.backoffice.model.BubbleShift
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

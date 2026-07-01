@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -121,7 +122,7 @@ public class OfferingBubbleMapper {
         dto.setStatus(readString(r, F_STATUS));
         dto.setDeliveryType(readString(r, F_DELIVERY_TYPE));
         dto.setPayOptions(readStringArray(r, F_PAY_OPTIONS));
-        dto.setPriceSource(readString(r, F_PRICE_SOURCE));
+        dto.setPriceSource(mapPriceSourceToUi(readString(r, F_PRICE_SOURCE)));
         dto.setDefaultType(readString(r, F_DEFAULT_TYPE));
         dto.setLimitedVisibility(readBoolean(r, F_LIMITED_VISIBILITY));
         dto.setUnlimitedQuantity(readBoolean(r, F_UNLIMITED_QUANTITY));
@@ -163,7 +164,7 @@ public class OfferingBubbleMapper {
         body.put(F_STATUS, hasText(dto.getStatus()) ? dto.getStatus() : "Active");
         putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
-        putIfPresent(body, F_PRICE_SOURCE, dto.getPriceSource());
+        putIfPresent(body, F_PRICE_SOURCE, mapPriceSourceToBubble(dto.getPriceSource()));
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
@@ -188,7 +189,7 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_STATUS, dto.getStatus());
         putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
-        putIfPresent(body, F_PRICE_SOURCE, dto.getPriceSource());
+        putIfPresent(body, F_PRICE_SOURCE, mapPriceSourceToBubble(dto.getPriceSource()));
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
@@ -349,18 +350,6 @@ public class OfferingBubbleMapper {
         return out;
     }
 
-    private static String readString(Map<String, Object> r, String key) {
-        if (r == null) {
-            return null;
-        }
-        Object v = r.get(key);
-        if (v == null) {
-            return null;
-        }
-        String s = String.valueOf(v);
-        return s.isBlank() ? null : s;
-    }
-
     private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
         String s = readString(r, key);
         if (s == null) {
@@ -403,5 +392,27 @@ public class OfferingBubbleMapper {
 
     private static boolean hasText(String s) {
         return s != null && !s.isBlank();
+    }
+
+    private static String mapPriceSourceToBubble(String uiVal) {
+        if (uiVal == null) return null;
+        if (uiVal.equalsIgnoreCase("manual") || uiVal.equalsIgnoreCase("Offering Manual Price")) {
+            return "offering_price";
+        }
+        if (uiVal.equalsIgnoreCase("computed") || uiVal.equalsIgnoreCase("Inventory Default Price")) {
+            return "inventory_default_price";
+        }
+        return uiVal;
+    }
+
+    private static String mapPriceSourceToUi(String bubbleVal) {
+        if (bubbleVal == null) return null;
+        if (bubbleVal.equalsIgnoreCase("offering_price") || bubbleVal.equalsIgnoreCase("Offering Manual Price")) {
+            return "manual";
+        }
+        if (bubbleVal.equalsIgnoreCase("inventory_default_price") || bubbleVal.equalsIgnoreCase("Inventory Default Price")) {
+            return "computed";
+        }
+        return bubbleVal;
     }
 }

@@ -169,4 +169,14 @@ class MeControllerTest {
         org.junit.jupiter.api.Assertions.assertEquals("c1", user.getCompanyId());
         org.junit.jupiter.api.Assertions.assertEquals("Worker", user.getRole());
     }
+
+    @Test
+    void corsAllowsPatchMethod() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options("/api/me")
+                        .header("Origin", "https://backoffice-dev.comforthub.ee")
+                        .header("Access-Control-Request-Method", "PATCH")
+                        .header("Access-Control-Request-Headers", "Authorization"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Access-Control-Allow-Methods", org.hamcrest.Matchers.containsString("PATCH")));
+    }
 }
