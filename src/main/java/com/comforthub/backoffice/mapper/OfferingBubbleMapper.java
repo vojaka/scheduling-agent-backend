@@ -25,15 +25,15 @@ public class OfferingBubbleMapper {
 
     static final String F_COMPANY = "Belongs to";
     static final String F_NAME = "Offering name";
-    static final String F_TYPE = "type";
+    static final String F_TYPE = "Offering Type";
     static final String F_STATUS = "Offering Activity Status";
     static final String F_DELIVERY_TYPE = "Delivery Method Precision";
     static final String F_PAY_OPTIONS = "Pay Options for this Offering";
     static final String F_PRICE_SOURCE = "Price - Price Source";
-    static final String F_DEFAULT_TYPE = "Default Type";
-    static final String F_LIMITED_VISIBILITY = "Limited visibility";
-    static final String F_UNLIMITED_QUANTITY = "Unlimited quantity in stock";
-    static final String F_QUANTITY_REQUIRED = "quantity required";
+    static final String F_DEFAULT_TYPE = "Default Offering Category Type";
+    static final String F_LIMITED_VISIBILITY = "Limited Visibility";
+    static final String F_UNLIMITED_QUANTITY = "Q - Unlimited Quantity";
+    static final String F_QUANTITY_REQUIRED = "Q - QNTY required";
 
     static final String F_INVENTORY_LIST = "Inventory";
 
@@ -323,20 +323,20 @@ public class OfferingBubbleMapper {
     private static String mapPriceSourceToBubble(String uiVal) {
         if (uiVal == null) return null;
         if (uiVal.equalsIgnoreCase("manual") || uiVal.equalsIgnoreCase("Offering Manual Price")) {
-            return "offering_price";
+            return "Offering Manual Price";
         }
         if (uiVal.equalsIgnoreCase("computed") || uiVal.equalsIgnoreCase("Inventory Default Price")) {
-            return "inventory_default_price";
+            return "Inventory Default Price";
         }
         return uiVal;
     }
 
     private static String mapPriceSourceToUi(String bubbleVal) {
         if (bubbleVal == null) return null;
-        if (bubbleVal.equalsIgnoreCase("offering_price") || bubbleVal.equalsIgnoreCase("Offering Manual Price")) {
+        if (bubbleVal.equalsIgnoreCase("Offering Manual Price") || bubbleVal.equalsIgnoreCase("manual") || bubbleVal.equalsIgnoreCase("offering_price")) {
             return "manual";
         }
-        if (bubbleVal.equalsIgnoreCase("inventory_default_price") || bubbleVal.equalsIgnoreCase("Inventory Default Price")) {
+        if (bubbleVal.equalsIgnoreCase("Inventory Default Price") || bubbleVal.equalsIgnoreCase("computed") || bubbleVal.equalsIgnoreCase("inventory_default_price")) {
             return "computed";
         }
         return bubbleVal;
