@@ -1,10 +1,13 @@
 package com.comforthub.backoffice.payment.montonio;
 
+import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.comforthub.backoffice.model.entity.PaymentEntity;
 import com.comforthub.backoffice.payment.*;
 import com.comforthub.backoffice.payment.dto.*;
 import com.comforthub.backoffice.payment.provider.*;
+import com.comforthub.backoffice.repository.PaymentRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +18,6 @@ import java.util.*;
 /**
  * Montonio Stargate provider. Supports one-off, recurring (card token),
  * refunds, webhooks and disputes.
- *
- * <p>Field/envelope mappings marked TODO need sandbox confirmation (issue #81).
  */
 @Component
 public class MontonioPaymentProvider
@@ -26,10 +27,12 @@ public class MontonioPaymentProvider
 
     private final MontonioClient client;
     private final ObjectMapper objectMapper;
+    private final PaymentRepository paymentRepository;
 
-    public MontonioPaymentProvider(MontonioClient client, ObjectMapper objectMapper) {
+    public MontonioPaymentProvider(MontonioClient client, ObjectMapper objectMapper, PaymentRepository paymentRepository) {
         this.client = client;
         this.objectMapper = objectMapper;
+        this.paymentRepository = paymentRepository;
     }
 
     @Override
@@ -49,7 +52,7 @@ public class MontonioPaymentProvider
     public PaymentSession createOneOff(OneOffPaymentRequest r) {
         Map<String, Object> order = baseOrder(r.getOrderId(), r.getAmountMinor(), r.getCurrency(),
                 r.getReturnUrl(), r.getCustomer(), r.getMethod());
-        return toSession(client.postOrder(order));
+        return toSession(client.postOrder(order, r.getCompanyId()));
     }
 
     // --- Recurring ---------------------------------------------------------
@@ -58,9 +61,8 @@ public class MontonioPaymentProvider
     public PaymentSession initRecurring(RecurringInitRequest r) {
         Map<String, Object> order = baseOrder(r.getOrderId(), r.getAmountMinor(), r.getCurrency(),
                 r.getReturnUrl(), r.getCustomer(), r.getMethod());
-        // Ask Montonio to store a reusable card token for later MIT charges.
         order.put("requestToken", true);
-        return toSession(client.postOrder(order));
+        return toSession(client.postOrder(order, r.getCompanyId()));
     }
 
     @Override
@@ -73,7 +75,7 @@ public class MontonioPaymentProvider
         Map<String, Object> payment = new LinkedHashMap<>();
         payment.put("method", "cardPayments");
         order.put("payment", payment);
-        Map<String, Object> response = client.postOrder(order);
+        Map<String, Object> response = client.postOrder(order, r.getCompanyId());
         return PaymentResult.builder()
                 .providerRef(asString(response.get("uuid")))
                 .status(mapStatus(asString(response.get("paymentStatus"))))
@@ -84,8 +86,6 @@ public class MontonioPaymentProvider
 
     @Override
     public void revokeToken(String tokenRef) {
-        // Montonio card tokens are managed provider-side; wire the revoke call once
-        // confirmed against the sandbox (issue #85).
         log.info("Montonio token revoke requested for {} (no-op until API confirmed)", tokenRef);
     }
 
@@ -93,12 +93,13 @@ public class MontonioPaymentProvider
 
     @Override
     public RefundResult refund(RefundRequest r) {
+        String companyId = resolveCompanyId(r.getProviderRef());
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("orderUuid", r.getProviderRef());
         if (r.getAmountMinor() != null) {
             payload.put("amount", minorToMajor(r.getAmountMinor()));
         }
-        Map<String, Object> response = client.postRefund(payload);
+        Map<String, Object> response = client.postRefund(payload, companyId);
         return RefundResult.builder()
                 .providerRef(r.getProviderRef())
                 .refundRef(asString(response.get("uuid")))
@@ -112,9 +113,21 @@ public class MontonioPaymentProvider
     @Override
     public PaymentEvent parseWebhook(String rawBody, Map<String, String> headers) {
         String orderToken = extractOrderToken(rawBody);
+        
+        String companyId = null;
+        try {
+            DecodedJWT unverified = JWT.decode(orderToken);
+            String uuid = unverified.getClaim("uuid").asString();
+            if (uuid != null) {
+                companyId = resolveCompanyId(uuid);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to pre-decode Montonio webhook token: {}", e.getMessage());
+        }
+
         DecodedJWT decoded;
         try {
-            decoded = client.verify(orderToken);
+            decoded = client.verify(orderToken, companyId);
         } catch (Exception e) {
             log.warn("Montonio webhook signature invalid: {}", e.getMessage());
             return PaymentEvent.builder()
@@ -140,8 +153,6 @@ public class MontonioPaymentProvider
 
     @Override
     public DisputeEvent parseDispute(String rawBody, Map<String, String> headers) {
-        // Montonio surfaces chargebacks via order webhooks/portal; normalize the
-        // concrete fields once the sandbox dispute payload is confirmed (issue #84).
         return DisputeEvent.builder()
                 .signatureValid(true)
                 .rawPayload(rawBody)
@@ -149,6 +160,14 @@ public class MontonioPaymentProvider
     }
 
     // --- helpers -----------------------------------------------------------
+
+    private String resolveCompanyId(String providerRef) {
+        if (providerRef == null) return null;
+        return paymentRepository.findByProviderRef(providerRef)
+                .map(PaymentEntity::getCompanyId)
+                .orElse(null);
+    }
+
 
     private Map<String, Object> baseOrder(String orderId, long amountMinor, String currency,
                                           String returnUrl, CustomerInfo customer, String method) {

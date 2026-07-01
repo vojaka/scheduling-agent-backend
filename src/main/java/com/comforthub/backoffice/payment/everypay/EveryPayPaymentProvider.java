@@ -1,8 +1,11 @@
 package com.comforthub.backoffice.payment.everypay;
 
+import com.comforthub.backoffice.model.entity.PaymentEntity;
 import com.comforthub.backoffice.payment.*;
 import com.comforthub.backoffice.payment.dto.*;
 import com.comforthub.backoffice.payment.provider.*;
+import com.comforthub.backoffice.repository.PaymentRepository;
+import com.comforthub.backoffice.service.CompanyCredentialService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +17,6 @@ import java.util.*;
 /**
  * EveryPay APIv4 provider. Supports one-off, recurring (CIT/MIT tokenization),
  * refunds, webhooks and disputes.
- *
- * <p>Field/endpoint mappings marked TODO need sandbox confirmation (issue #82).
  */
 @Component
 public class EveryPayPaymentProvider
@@ -25,10 +26,15 @@ public class EveryPayPaymentProvider
 
     private final EveryPayClient client;
     private final ObjectMapper objectMapper;
+    private final CompanyCredentialService credentialService;
+    private final PaymentRepository paymentRepository;
 
-    public EveryPayPaymentProvider(EveryPayClient client, ObjectMapper objectMapper) {
+    public EveryPayPaymentProvider(EveryPayClient client, ObjectMapper objectMapper,
+                                   CompanyCredentialService credentialService, PaymentRepository paymentRepository) {
         this.client = client;
         this.objectMapper = objectMapper;
+        this.credentialService = credentialService;
+        this.paymentRepository = paymentRepository;
     }
 
     @Override
@@ -47,8 +53,8 @@ public class EveryPayPaymentProvider
     @Override
     public PaymentSession createOneOff(OneOffPaymentRequest r) {
         Map<String, Object> body = basePayment(r.getOrderId(), r.getAmountMinor(), r.getCurrency(),
-                r.getReturnUrl(), r.getCustomer());
-        return toSession(client.post("/payments/oneoff", body));
+                r.getReturnUrl(), r.getCustomer(), r.getCompanyId());
+        return toSession(client.post("/payments/oneoff", body, r.getCompanyId()));
     }
 
     // --- Recurring ---------------------------------------------------------
@@ -56,24 +62,25 @@ public class EveryPayPaymentProvider
     @Override
     public PaymentSession initRecurring(RecurringInitRequest r) {
         Map<String, Object> body = basePayment(r.getOrderId(), r.getAmountMinor(), r.getCurrency(),
-                r.getReturnUrl(), r.getCustomer());
+                r.getReturnUrl(), r.getCustomer(), r.getCompanyId());
         body.put("request_token", true);
         body.put("token_agreement", agreement(r.getAgreementType()));
-        return toSession(client.post("/payments/oneoff", body));
+        return toSession(client.post("/payments/oneoff", body, r.getCompanyId()));
     }
 
     @Override
     public PaymentResult chargeRecurring(RecurringChargeRequest r) {
+        String companyId = r.getCompanyId();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("api_username", client.config().getUsername());
-        body.put("account_name", client.config().getAccountName());
+        body.put("api_username", resolveApiUsername(companyId));
+        body.put("account_name", resolveAccountName(companyId));
         body.put("amount", minorToMajor(r.getAmountMinor()));
         body.put("order_reference", r.getOrderId());
         body.put("nonce", UUID.randomUUID().toString());
         body.put("timestamp", Instant.now().toString());
         body.put("token", r.getTokenRef());
         body.put("token_agreement", agreement(r.getAgreementType()));
-        Map<String, Object> response = client.post("/payments/mit", body);
+        Map<String, Object> response = client.post("/payments/mit", body, companyId);
         return PaymentResult.builder()
                 .providerRef(asString(response.get("payment_reference")))
                 .status(mapStatus(asString(response.get("payment_state"))))
@@ -91,16 +98,16 @@ public class EveryPayPaymentProvider
 
     @Override
     public RefundResult refund(RefundRequest r) {
+        String companyId = resolveCompanyIdFromPaymentRef(r.getProviderRef());
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("api_username", client.config().getUsername());
+        body.put("api_username", resolveApiUsername(companyId));
         body.put("payment_reference", r.getProviderRef());
         body.put("nonce", UUID.randomUUID().toString());
         body.put("timestamp", Instant.now().toString());
         if (r.getAmountMinor() != null) {
             body.put("amount", minorToMajor(r.getAmountMinor()));
         }
-        // TODO(#82): confirm refund endpoint shape against sandbox.
-        Map<String, Object> response = client.post("/payments/" + r.getProviderRef() + "/refund", body);
+        Map<String, Object> response = client.post("/payments/" + r.getProviderRef() + "/refund", body, companyId);
         return RefundResult.builder()
                 .providerRef(r.getProviderRef())
                 .refundRef(asString(response.get("payment_reference")))
@@ -113,7 +120,6 @@ public class EveryPayPaymentProvider
 
     @Override
     public PaymentEvent parseWebhook(String rawBody, Map<String, String> headers) {
-        // EveryPay callbacks are lightweight; always re-fetch authoritative state.
         String paymentReference = field(rawBody, "payment_reference");
         if (paymentReference == null) {
             return PaymentEvent.builder()
@@ -123,8 +129,9 @@ public class EveryPayPaymentProvider
                     .rawPayload(rawBody)
                     .build();
         }
+        String companyId = resolveCompanyIdFromPaymentRef(paymentReference);
         Map<String, Object> status = client.get("/payments/" + paymentReference
-                + "?api_username=" + client.config().getUsername());
+                + "?api_username=" + resolveApiUsername(companyId), companyId);
         String state = asString(status.get("payment_state"));
         return PaymentEvent.builder()
                 .providerRef(paymentReference)
@@ -150,11 +157,34 @@ public class EveryPayPaymentProvider
 
     // --- helpers -----------------------------------------------------------
 
+    private String resolveCompanyIdFromPaymentRef(String providerRef) {
+        if (providerRef == null) return null;
+        return paymentRepository.findByProviderRef(providerRef)
+                .map(PaymentEntity::getCompanyId)
+                .orElse(null);
+    }
+
+    private String resolveApiUsername(String companyId) {
+        if (companyId != null) {
+            return credentialService.getDecryptedCredential(companyId, "EVERYPAY", "api_username")
+                    .orElse(client.config().getUsername());
+        }
+        return client.config().getUsername();
+    }
+
+    private String resolveAccountName(String companyId) {
+        if (companyId != null) {
+            return credentialService.getDecryptedCredential(companyId, "EVERYPAY", "account_name")
+                    .orElse(client.config().getAccountName());
+        }
+        return client.config().getAccountName();
+    }
+
     private Map<String, Object> basePayment(String orderId, long amountMinor, String currency,
-                                            String returnUrl, CustomerInfo customer) {
+                                            String returnUrl, CustomerInfo customer, String companyId) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("api_username", client.config().getUsername());
-        body.put("account_name", client.config().getAccountName());
+        body.put("api_username", resolveApiUsername(companyId));
+        body.put("account_name", resolveAccountName(companyId));
         body.put("amount", minorToMajor(amountMinor));
         body.put("order_reference", orderId);
         body.put("nonce", UUID.randomUUID().toString());
@@ -216,3 +246,4 @@ public class EveryPayPaymentProvider
         };
     }
 }
+

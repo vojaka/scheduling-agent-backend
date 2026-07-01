@@ -27,7 +27,7 @@ services:
     ports:
       - "3001:3000"  # Exposed internally/externally for debugging if needed, but not required
     environment:
-      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres_dev
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/${DB_NAME:-postgres_dev}
       PGRST_DB_SCHEMA: public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${PGRST_JWT_SECRET:?set PGRST_JWT_SECRET in .env}
@@ -52,7 +52,7 @@ services:
       - SUPABASE_API_KEY=${SUPABASE_API_KEY:-}
       - METABASE_SITE_URL=http://178.105.76.235:3000
       - METABASE_EMBED_SECRET=${METABASE_EMBED_SECRET:?set METABASE_EMBED_SECRET in .env}
-      - DB_URL=jdbc:postgresql://db:5432/postgres_dev
+      - DB_URL=jdbc:postgresql://db:5432/${DB_NAME:-postgres_dev}
       - DB_USERNAME=postgres
       - DB_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:

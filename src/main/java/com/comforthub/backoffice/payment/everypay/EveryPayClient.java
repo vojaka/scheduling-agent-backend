@@ -2,6 +2,7 @@ package com.comforthub.backoffice.payment.everypay;
 
 import com.comforthub.backoffice.payment.PaymentException;
 import com.comforthub.backoffice.payment.config.PaymentProperties;
+import com.comforthub.backoffice.service.CompanyCredentialService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -25,15 +26,14 @@ public class EveryPayClient {
 
     private final RestClient restClient;
     private final PaymentProperties.Everypay config;
+    private final CompanyCredentialService credentialService;
 
-    public EveryPayClient(RestClient.Builder builder, PaymentProperties properties) {
+    public EveryPayClient(RestClient.Builder builder, PaymentProperties properties, CompanyCredentialService credentialService) {
         this.config = properties.getEverypay();
-        String basic = Base64.getEncoder().encodeToString(
-                (safe(config.getUsername()) + ":" + safe(config.getSecret())).getBytes(StandardCharsets.UTF_8));
+        this.credentialService = credentialService;
         this.restClient = builder
                 .baseUrl(config.getBaseUrl())
                 .requestFactory(new JdkClientHttpRequestFactory())
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Basic " + basic)
                 .build();
     }
 
@@ -41,11 +41,26 @@ public class EveryPayClient {
         return config;
     }
 
+    private String resolveBasicAuth(String companyId) {
+        String username = config.getUsername();
+        String secret = config.getSecret();
+        if (companyId != null) {
+            username = credentialService.getDecryptedCredential(companyId, "EVERYPAY", "api_username")
+                    .orElse(config.getUsername());
+            secret = credentialService.getDecryptedCredential(companyId, "EVERYPAY", "api_secret")
+                    .orElse(config.getSecret());
+        }
+        return Base64.getEncoder().encodeToString(
+                (safe(username) + ":" + safe(secret)).getBytes(StandardCharsets.UTF_8));
+    }
+
     @SuppressWarnings("unchecked")
-    public Map<String, Object> post(String path, Map<String, Object> body) {
+    public Map<String, Object> post(String path, Map<String, Object> body, String companyId) {
+        String basic = resolveBasicAuth(companyId);
         try {
             return restClient.post()
                     .uri(path)
+                    .header(HttpHeaders.AUTHORIZATION, "Basic " + basic)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
@@ -57,10 +72,12 @@ public class EveryPayClient {
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> get(String path) {
+    public Map<String, Object> get(String path, String companyId) {
+        String basic = resolveBasicAuth(companyId);
         try {
             return restClient.get()
                     .uri(path)
+                    .header(HttpHeaders.AUTHORIZATION, "Basic " + basic)
                     .retrieve()
                     .body(Map.class);
         } catch (Exception e) {
@@ -73,3 +90,4 @@ public class EveryPayClient {
         return s == null ? "" : s;
     }
 }
+

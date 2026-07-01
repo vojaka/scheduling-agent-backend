@@ -24,19 +24,20 @@ def main():
     if db_password == "dummy":
         db_password = "comfort-hub-db-pass-2026"
 
+    db_name = env.get("DB_NAME", os.environ.get("DB_NAME", "postgres_dev"))
     # Connect to local database
     hosts = ["localhost", "db"]
     conn = None
     for host in hosts:
         try:
-            db_uri = f"postgres://postgres:{db_password}@{host}:5432/postgres_dev"
+            db_uri = f"postgres://postgres:{db_password}@{host}:5432/{db_name}"
             conn = psycopg2.connect(db_uri)
             break
         except Exception:
             continue
 
     if not conn:
-        print("Error: Could not connect to PostgreSQL database postgres_dev.")
+        print(f"Error: Could not connect to PostgreSQL database {db_name}.")
         sys.exit(1)
 
     cursor = conn.cursor()
