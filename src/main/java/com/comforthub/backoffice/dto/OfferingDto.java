@@ -1,19 +1,13 @@
 package com.comforthub.backoffice.dto;
 
-import java.math.BigDecimal;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 /**
  * Offering payload exchanged with the React backoffice UI.
- *
- * <p>Field names mirror the former JPA {@code OfferingEntity} JSON one-for-one so
- * the UI needs no changes. The only difference is that id-bearing fields are now
- * {@link String} (Bubble's text ids such as {@code "1699999999999x123"}) instead
- * of UUIDs — invisible over the wire, since both serialize to JSON strings.
- *
- * <p>Dates are carried as ISO-8601 strings exactly as Bubble returns them.
  */
 @Data
 @NoArgsConstructor
@@ -51,6 +45,7 @@ public class OfferingDto {
 
     private String defaultType;
 
+    /** Unit price. */
     private BigDecimal price;
 
     private Boolean defaultOffering;

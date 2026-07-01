@@ -7,9 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface InventoryRepository extends JpaRepository<InventoryEntity, UUID> {
+
+    Optional<InventoryEntity> findByBubbleId(String bubbleId);
 
     @Query("SELECT i FROM InventoryEntity i WHERE i.companyId = :companyId AND i.isDeleted = false" +
            " AND (CAST(:search AS string) IS NULL OR LOWER(i.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")

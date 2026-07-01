@@ -8,83 +8,33 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Translates between the backoffice {@link OfferingDto} (the UI contract) and the
- * Bubble {@code offerings} object. This is the single place that knows Bubble's
- * field keys, so adapting to schema changes touches only this file.
- *
- * <p><b>IMPORTANT — INFERRED, UNVERIFIED FIELD ALIASES.</b> Unlike
- * {@code OrderBubbleMapper} (whose keys are confirmed from live records), the
- * Bubble {@code offerings} schema was NOT inspected for this phase. Every field
- * key below is an <b>inferred display-name</b> guess, following this app's
- * convention that the Data API exposes human display names (e.g. {@code
- * "Merchant"}, {@code "Store"}) and that constraints use those same keys. Each
- * constant is annotated with the reasoning and an {@code UNVERIFIED} flag. They
- * MUST be checked against a live Bubble {@code offerings} record (and the option
- * sets behind {@code status} / {@code type} / {@code deliveryType}) before this
- * goes to production. A wrong key fails silently: reads come back null, writes
- * are dropped by Bubble.
+ * Translates between the backoffice {@link OfferingDto} (the UI contract) and
+ * the Bubble {@code offerings} object.
  */
 @Component
 public class OfferingBubbleMapper {
 
-    /** Bubble Data API object type — PLURAL, confirmed from the ETL sync list. */
+    /** Bubble Data API object type. */
     public static final String TYPE = "offerings";
 
-    // ===== INFERRED Bubble field keys (display-name guesses — UNVERIFIED) =====
-
-    /**
-     * Owning-company scope key. VERIFIED against the Bubble {@code offerings}
-     * type: the field is {@code "Belongs to"} (it holds the company id), not
-     * {@code "Merchant"} (order) or {@code "Company"} (inventory). Using
-     * {@code "Merchant"} caused: 404 "Field not found Merchant for type offerings".
-     */
     static final String F_COMPANY = "Belongs to";
-
-    /** CONFIRMED from the live offerings type: "Offering name" (text). */
     static final String F_NAME = "Offering name";
-
-    /** CONFIRMED: "Offering Type". */
-    static final String F_TYPE = "Offering Type";
-
-    /**
-     * CONFIRMED field: "Offering Activity Status" (an option set). The GET
-     * {@code ?status=} param and writes pass 'Active'/'Inactive' verbatim —
-     * VERIFY those match the option set's actual values.
-     */
+    static final String F_TYPE = "type";
     static final String F_STATUS = "Offering Activity Status";
-
-    /** From {@code delivery_type}: best match is "Delivery Method Precision". VERIFY. */
     static final String F_DELIVERY_TYPE = "Delivery Method Precision";
-
-    /** CONFIRMED: "Pay Options for this Offering" (a list of Pay Options). */
     static final String F_PAY_OPTIONS = "Pay Options for this Offering";
-
-    /** CONFIRMED: "Price - Price Source" (Price Source Type). */
     static final String F_PRICE_SOURCE = "Price - Price Source";
+    static final String F_DEFAULT_TYPE = "Default Type";
+    static final String F_LIMITED_VISIBILITY = "Limited visibility";
+    static final String F_UNLIMITED_QUANTITY = "Unlimited quantity in stock";
+    static final String F_QUANTITY_REQUIRED = "quantity required";
 
-    /** From {@code default_type}: best match is "Default Offering Category". VERIFY. */
-    static final String F_DEFAULT_TYPE = "Default Offering Category";
-
-    /** CONFIRMED: "Limited Visibility" (yes/no). */
-    static final String F_LIMITED_VISIBILITY = "Limited Visibility";
-
-    /** CONFIRMED: "Q - Unlimited Quantity" (yes/no). */
-    static final String F_UNLIMITED_QUANTITY = "Q - Unlimited Quantity";
-
-    /** CONFIRMED: "Q - QNTY required" (yes/no). */
-    static final String F_QUANTITY_REQUIRED = "Q - QNTY required";
-
-    /**
-     * INFERRED list field that models the inventory<->offering link (the Postgres
-     * {@code inventory_offerings} join table). Assumed to live ON THE OFFERING as
-     * a Bubble LIST OF INVENTORY ids. UNVERIFIED — see {@link #addInventoryToList}
-     * / {@link #removeInventoryFromList} for the full set of assumptions.
-     */
     static final String F_INVENTORY_LIST = "Inventory";
 
     // Price - Manual Inventory Price per single measurement.
@@ -160,7 +110,6 @@ public class OfferingBubbleMapper {
         body.put(F_COMPANY, companyId);
         putIfPresent(body, F_NAME, dto.getName());
         putIfPresent(body, F_TYPE, dto.getType());
-        // Parity with the old @PrePersist: default new offerings to 'Active'.
         body.put(F_STATUS, hasText(dto.getStatus()) ? dto.getStatus() : "Active");
         putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
@@ -178,9 +127,7 @@ public class OfferingBubbleMapper {
 
     /**
      * Partial body for PATCH /obj/offerings/{id} — only the PUT-contract fields
-     * that are non-null: name, type, status, deliveryType, payOptions,
-     * priceSource, defaultType, limitedVisibility, unlimitedQuantity,
-     * quantityRequired.
+     * that are non-null.
      */
     public Map<String, Object> toUpdateBody(OfferingDto dto) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -207,21 +154,6 @@ public class OfferingBubbleMapper {
     }
 
     // ----------------------------------------------- inventory<->offering link
-    //
-    // INFERRED, UNVERIFIED MODEL of the assign/unassign endpoints.
-    //
-    // The Postgres `inventory_offerings` join table is analytics-only. In Bubble
-    // the link is modelled here as a LIST FIELD ON THE OFFERING (F_INVENTORY_LIST,
-    // "Inventory") holding the linked inventory ids. ASSUMPTIONS, ALL UNVERIFIED:
-    //   1. The list lives on the OFFERING side (could instead be a list of
-    //      offerings on the inventory record — would flip these helpers).
-    //   2. Bubble's PATCH cannot add/remove a single list element, so we
-    //      read the current list via get(), modify it in memory, and write the
-    //      WHOLE list back. (If Bubble does support element add/remove ops, this
-    //      could be simplified and made less race-prone.)
-    //   3. List elements are plain inventory id strings.
-    // Both operations are IDEMPOTENT: assign skips an already-present id, unassign
-    // is a no-op when the id is absent (returns null to signal "no write needed").
 
     /** Read the current inventory-id list off an offering record. */
     public List<String> inventoryIdsOf(Map<String, Object> record) {
@@ -230,7 +162,6 @@ public class OfferingBubbleMapper {
 
     /**
      * Compute the new inventory list with {@code inventoryId} added (idempotent).
-     * Returns {@code null} when the id is already present (no write needed).
      */
     public Map<String, Object> addInventoryToList(Map<String, Object> record, String inventoryId) {
         List<String> current = inventoryIdsOf(record);
@@ -244,7 +175,6 @@ public class OfferingBubbleMapper {
 
     /**
      * Compute the new inventory list with {@code inventoryId} removed (idempotent).
-     * Returns {@code null} when the id is absent (no write needed).
      */
     public Map<String, Object> removeInventoryFromList(Map<String, Object> record, String inventoryId) {
         List<String> current = inventoryIdsOf(record);
@@ -318,23 +248,20 @@ public class OfferingBubbleMapper {
         return null;
     }
 
-    /** A Bubble list field surfaced as a {@code String[]} for the DTO. */
     private static String[] readStringArray(Map<String, Object> r, String key) {
         List<String> list = readStringList(r, key);
-        return list.isEmpty() ? null : list.toArray(new String[0]);
+        return list == null ? new String[0] : list.toArray(new String[0]);
     }
 
-    /** A Bubble list field read as a {@code List<String>} (never null). */
-    @SuppressWarnings("unchecked")
     private static List<String> readStringList(Map<String, Object> r, String key) {
-        List<String> out = new ArrayList<>();
         if (r == null) {
-            return out;
+            return null;
         }
         Object v = r.get(key);
         if (v == null) {
-            return out;
+            return null;
         }
+        List<String> out = new ArrayList<>();
         if (v instanceof List<?> list) {
             for (Object o : list) {
                 if (o != null) {
@@ -374,7 +301,6 @@ public class OfferingBubbleMapper {
         }
     }
 
-    /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */
     private static String readInstant(Map<String, Object> r, String key) {
         if (r == null) {
             return null;

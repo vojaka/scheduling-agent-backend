@@ -8,9 +8,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface BookingRepository extends JpaRepository<BookingEntity, UUID> {
+
+    @Query("SELECT b FROM BookingEntity b WHERE b.companyId = :companyId " +
+           "AND b.startTime >= :from AND b.workerId IS NULL " +
+           "ORDER BY b.startTime ASC")
+    List<BookingEntity> findUnassignedBookings(@Param("companyId") String companyId,
+                                               @Param("from") OffsetDateTime from);
 
     /**
      * List bookings for a company, optionally filtered by worker and/or date range.
