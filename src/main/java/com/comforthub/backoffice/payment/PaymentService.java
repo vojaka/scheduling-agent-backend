@@ -42,7 +42,7 @@ public class PaymentService {
             PaymentSession session = provider.createOneOff(request);
             recorder.recordInitiated(new RecordedPayment(key, PaymentOperation.ONE_OFF,
                     session.getProviderRef(), request.getOrderId(), request.getCompanyId(),
-                    request.getAmountMinor(), request.getCurrency(), request.getMethod(), null));
+                    request.getAmountMinor(), request.getCurrency(), request.getMethod(), null, null));
             return session;
         } catch (RuntimeException e) {
             metrics.failed(key, PaymentOperation.ONE_OFF, "create_error");
@@ -58,7 +58,7 @@ public class PaymentService {
             PaymentSession session = provider.initRecurring(request);
             recorder.recordInitiated(new RecordedPayment(key, PaymentOperation.RECURRING_INIT,
                     session.getProviderRef(), request.getOrderId(), request.getCompanyId(),
-                    request.getAmountMinor(), request.getCurrency(), request.getMethod(), null));
+                    request.getAmountMinor(), request.getCurrency(), request.getMethod(), null, null));
             return session;
         } catch (RuntimeException e) {
             metrics.failed(key, PaymentOperation.RECURRING_INIT, "init_error");
@@ -75,7 +75,7 @@ public class PaymentService {
             metrics.recurringCharge(key, ok);
             recorder.recordInitiated(new RecordedPayment(key, PaymentOperation.RECURRING_CHARGE,
                     result.getProviderRef(), request.getOrderId(), request.getCompanyId(),
-                    request.getAmountMinor(), request.getCurrency(), null, request.getTokenRef()));
+                    request.getAmountMinor(), request.getCurrency(), null, request.getTokenRef(), null));
             return result;
         } catch (RuntimeException e) {
             metrics.recurringCharge(key, false);
@@ -88,9 +88,14 @@ public class PaymentService {
         RefundablePayments provider = registry.require(key, RefundablePayments.class, PaymentCapability.REFUND);
         RefundResult result = provider.refund(request);
         metrics.refund(key);
+        // result.getProviderRef() echoes back the *original* payment's provider ref
+        // (see MontonioPaymentProvider/EveryPayPaymentProvider#refund) — orderId/
+        // companyId are intentionally left null here (RefundRequest doesn't carry
+        // them; refunds are keyed by provider ref only) and backfilled by the
+        // recorder from the parent payment it resolves via parentProviderRef.
         recorder.recordInitiated(new RecordedPayment(key, PaymentOperation.REFUND,
                 result.getRefundRef(), null, null, result.getAmountMinor(),
-                request.getCurrency(), null, null));
+                request.getCurrency(), null, null, result.getProviderRef()));
         return result;
     }
 
@@ -122,6 +127,8 @@ public class PaymentService {
     private void handleDispute(ProviderKey key, String rawBody, Map<String, String> headers) {
         if (registry.get(key) instanceof DisputeAware disputeProvider) {
             DisputeEvent dispute = disputeProvider.parseDispute(rawBody, headers);
+            // Provider implementations don't stamp their own key (see DisputeEvent.provider).
+            dispute.setProvider(key);
             recorder.recordDispute(dispute);
             metrics.chargeback(key);
             log.warn("Chargeback recorded for {} payment {}", key, dispute.getProviderRef());
