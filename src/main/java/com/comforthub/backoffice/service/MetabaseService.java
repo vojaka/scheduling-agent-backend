@@ -29,7 +29,7 @@ public class MetabaseService {
             @Value("${metabase.site.url:http://178.105.76.235:3000}") String metabaseSiteUrl,
             @Value("${metabase.embed.secret:}") String metabaseEmbedSecret,
             @Value("${metabase.admin.email:kim.smirnov@gmail.com}") String metabaseAdminEmail,
-            @Value("${metabase.admin.password:ComfortHubPass2026!}") String metabaseAdminPassword) {
+            @Value("${metabase.admin.password:}") String metabaseAdminPassword) {
         this.metabaseSiteUrl = metabaseSiteUrl;
         this.metabaseEmbedSecret = metabaseEmbedSecret;
         this.metabaseAdminEmail = metabaseAdminEmail;
