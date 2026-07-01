@@ -32,8 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Covers the company-scoped worker list, which shares the compact
  * {@link com.comforthub.backoffice.dto.WorkerResponse} shape with the invite /
- * edit endpoints: title-case role, {@code name}/{@code active} field names, and
- * no internal scoping columns leaked.
+ * edit endpoints: title-case role, {@code name}/{@code active} field names,
+ * {@code bubbleId} exposed (needed by the Company page to resolve owner/worker
+ * names), and {@code auth0UserId}/{@code companyId} kept internal-only.
  */
 @WebMvcTest(DataController.class)
 @Import(SecurityConfig.class)
@@ -77,12 +78,12 @@ class DataControllerTest {
         mockMvc.perform(get("/api/users").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value("22222222-2222-2222-2222-222222222222"))
+                .andExpect(jsonPath("$.content[0].bubbleId").value("bubble-1"))
                 .andExpect(jsonPath("$.content[0].name").value("Ada Owner"))
                 .andExpect(jsonPath("$.content[0].role").value("Owner"))
                 .andExpect(jsonPath("$.content[0].active").value(true))
                 .andExpect(jsonPath("$.content[0].email").value("ada@example.com"))
-                // internal scoping columns must not be exposed
-                .andExpect(jsonPath("$.content[0].bubbleId").doesNotExist())
+                // auth0/company scoping columns stay internal-only.
                 .andExpect(jsonPath("$.content[0].auth0UserId").doesNotExist())
                 .andExpect(jsonPath("$.content[0].companyId").doesNotExist());
     }
