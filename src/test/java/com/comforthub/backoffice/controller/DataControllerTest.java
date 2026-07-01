@@ -2,7 +2,6 @@ package com.comforthub.backoffice.controller;
 
 import com.comforthub.backoffice.model.entity.BubbleUserEntity;
 import com.comforthub.backoffice.repository.BubbleShiftRepository;
-import com.comforthub.backoffice.repository.BubbleStoreRepository;
 import com.comforthub.backoffice.repository.BubbleUserRepository;
 import com.comforthub.backoffice.security.SecurityConfig;
 import com.comforthub.backoffice.service.CurrentUserService;
@@ -48,9 +47,6 @@ class DataControllerTest {
 
     @MockBean
     private BubbleUserRepository userRepository;
-
-    @MockBean
-    private BubbleStoreRepository storeRepository;
 
     @MockBean
     private CurrentUserService currentUserService;
