@@ -13,64 +13,49 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Translates between the backoffice {@link BookingDto} (the UI contract) and the
- * Bubble calendar-event object. This is the single place that knows Bubble's
- * field keys for bookings, so adapting to schema changes touches only this file.
+ * Translates between the backoffice {@link BookingDto} and the Bubble
+ * {@code events} object (bookings are stored as {@code events}).
  *
- * <h2>#1 THING TO VERIFY — the Bubble object type</h2>
- * There is <b>no {@code booking} type</b> in the ETL {@code TABLES_TO_SYNC} list
- * (see {@code sync_all.py}). The closest match for "calendar bookings" is
- * {@code events}, so {@link #TYPE} is set to <b>{@code "events"}</b> as a best
- * guess. <b>This MUST be verified against the live Bubble app before shipping</b>
- * — if calendar bookings are actually stored under a different type (e.g. an
- * appointment / reservation object), change {@link #TYPE} accordingly.
+ * <p><b>Confirmed from the live {@code events} data type:</b> title = {@code
+ * "Name"}, start = {@code "Date - Date Range Start"}, end = {@code "Date - Date
+ * Range End"}, worker = {@code "Worker"} (a User ref), and {@code "Service"} is
+ * an Inventory ref.
  *
- * <h2>INFERRED field aliases — VERIFY EACH</h2>
- * Unlike {@link OrderBubbleMapper} (whose keys are confirmed from live records),
- * <b>every Bubble field key below is INFERRED</b>. This app's Data API exposes
- * display-name keys (e.g. {@code "Merchant"}, {@code "Assigned User"},
- * {@code "Time - Start Time"} — confirmed pattern from the {@code shift} type),
- * and constraints use the same display-name keys. The guesses lean on the
- * conventions seen in {@code BubbleShift} (references like {@code "Assigned
- * User"}/{@code "Assigned Store"}, dates like {@code "Time - Start Time"}) and
- * the {@code order} type (scope key {@code "Merchant"}). Each constant is marked
- * INFERRED and must be checked against a live {@code events} record.
+ * <h2>⚠️ Structural mismatch with the booking contract — needs a product call</h2>
+ * The {@code events} type has <b>no company/merchant field, no store, and no
+ * customer name/email text</b> (its customer is a {@code "Customer
+ * (individual)"} User ref). Consequences, all flagged:
+ * <ul>
+ *   <li><b>Company scoping is indirect</b> via the booking's {@code Service} (an
+ *       Inventory), whose {@code "Company"} field is confirmed. We resolve the
+ *       company's inventory ids, then filter events by {@code Service in [ids]}.
+ *       Bookings with no Service are excluded. <b>VERIFY</b> this is the intended
+ *       ownership model (vs. scoping by the Worker's company).</li>
+ *   <li>{@code storeId} / {@code customerName} / {@code customerEmail} have no
+ *       {@code events} field and stay {@code null}.</li>
+ *   <li><b>Create can't set the scope</b> — the DTO has no service id, so a
+ *       created event won't be attributable to a company. Create is limited to
+ *       title/time/worker; see {@code BookingController}.</li>
+ * </ul>
  */
 @Component
 public class BookingBubbleMapper {
 
-    /**
-     * Bubble Data API object type.
-     * INFERRED / #1 TO VERIFY: no "booking" type exists in the ETL list; "events"
-     * is the most likely calendar object. Confirm against the live Bubble app.
-     */
+    /** Bubble Data API object type — bookings live under {@code events}. */
     public static final String TYPE = "events";
 
-    // ===== INFERRED Bubble field keys (NONE confirmed — verify each one) =====
+    // ===== Confirmed events field keys (from the live data type) =====
+    static final String F_TITLE   = "Name";
+    static final String F_START   = "Date - Date Range Start";
+    static final String F_END     = "Date - Date Range End";
+    static final String F_WORKER  = "Worker";
+    /** Inventory ref — the booking's service; used for indirect company scoping. */
+    static final String F_SERVICE = "Service";
 
-    /** INFERRED: owning merchant — scope key. Matches the order type's "Merchant". */
-    static final String F_COMPANY        = "Merchant";
-
-    /** INFERRED: booking title/subject. Plain display-name guess. */
-    static final String F_TITLE          = "Title";
-
-    /** INFERRED: start instant. Follows BubbleShift's "Time - Start Time". */
-    static final String F_START_TIME     = "Time - Start Time";
-
-    /** INFERRED: end instant. Follows BubbleShift's "Time - End Time". */
-    static final String F_END_TIME       = "Time - End Time";
-
-    /** INFERRED: assigned worker (user ref). Follows BubbleShift's "Assigned User". */
-    static final String F_WORKER         = "Assigned User";
-
-    /** INFERRED: store ref. Follows BubbleShift's "Assigned Store". */
-    static final String F_STORE          = "Assigned Store";
-
-    /** INFERRED: customer display name (text). */
-    static final String F_CUSTOMER_NAME  = "Customer Name";
-
-    /** INFERRED: customer email (text). */
-    static final String F_CUSTOMER_EMAIL = "Customer Email";
+    // ===== Indirect company scope: booking -> Service (Inventory) -> Company ==
+    /** Bubble object type for inventory (its {@code Company} field is confirmed). */
+    public static final String INVENTORY_TYPE = "inventory";
+    static final String INVENTORY_COMPANY_FIELD = "Company";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
@@ -83,123 +68,111 @@ public class BookingBubbleMapper {
 
     // ---------------------------------------------------------------- reads
 
-    /** Map one Bubble {@code events} record to the UI DTO. */
+    /**
+     * Map one Bubble {@code events} record to the UI DTO. {@code companyId} is set
+     * by the controller (events has no company field of its own). {@code storeId}
+     * / {@code customerName} / {@code customerEmail} have no {@code events} field
+     * and are left null.
+     */
     public BookingDto toDto(Map<String, Object> r) {
         BookingDto dto = new BookingDto();
         String id = readString(r, "_id");
         dto.setId(id);
         dto.setBubbleId(id);
-        dto.setCompanyId(readString(r, F_COMPANY));
-        dto.setStoreId(readString(r, F_STORE));
-        dto.setWorkerId(readString(r, F_WORKER));
         dto.setTitle(readString(r, F_TITLE));
-        dto.setCustomerName(readString(r, F_CUSTOMER_NAME));
-        dto.setCustomerEmail(readString(r, F_CUSTOMER_EMAIL));
-        dto.setStartTime(readInstant(r, F_START_TIME));
-        dto.setEndTime(readInstant(r, F_END_TIME));
+        dto.setWorkerId(readString(r, F_WORKER));
+        dto.setStartTime(readInstant(r, F_START));
+        dto.setEndTime(readInstant(r, F_END));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
     }
 
-    // --------------------------------------------------------------- filters
+    /** The Service (inventory id) a booking references — for company ownership checks. */
+    public String serviceOf(Map<String, Object> record) {
+        return readString(record, F_SERVICE);
+    }
+
+    // ------------------------------------------------------- constraints/scope
+
+    /** Constraints selecting the inventories that belong to {@code companyId}. */
+    public String inventoryCompanyConstraints(String companyId) {
+        return writeConstraints(List.of(constraint(INVENTORY_COMPANY_FIELD, "equals", companyId)));
+    }
+
+    /** Extract the {@code _id}s from a page of Bubble records. */
+    public List<String> idsOf(List<Map<String, Object>> records) {
+        List<String> ids = new ArrayList<>();
+        if (records != null) {
+            for (Map<String, Object> m : records) {
+                String id = readString(m, "_id");
+                if (id != null) {
+                    ids.add(id);
+                }
+            }
+        }
+        return ids;
+    }
 
     /**
-     * Bubble constraints JSON scoping to {@code companyId} (the merchant), an
-     * optional worker filter, and a date-window OVERLAP filter against
-     * {@code [from, to]}.
+     * Constraints scoping events to {@code Service in [serviceInventoryIds]} (the
+     * company's inventories), an optional worker filter, and a date-window
+     * OVERLAP against {@code [from, to]} ({@code end > from} AND {@code start < to}).
      *
-     * <p><b>Overlap modelling.</b> A booking {@code [startTime, endTime]} overlaps
-     * the query window {@code [from, to]} iff {@code endTime >= from} AND
-     * {@code startTime <= to} (the same predicate the old JPA query used).
-     * Expressed as Bubble constraints:
-     * <ul>
-     *   <li>{@code endTime} <b>"greater than or equal to"</b> {@code from}</li>
-     *   <li>{@code startTime} <b>"less than or equal to"</b> {@code to}</li>
-     * </ul>
-     *
-     * <p><b>FLAG — constraint type names.</b> Bubble's documented date
-     * constraint types are {@code "greater than"} / {@code "less than"} (strict).
-     * Inclusive variants are not universally available, so the strict forms are
-     * used here. Using strict {@code >}/{@code <} on the overlap bounds can miss
-     * bookings that exactly touch an endpoint (endTime == from, or
-     * startTime == to); if exact-touch inclusion matters, verify whether this
-     * Bubble app accepts {@code "greater than or equal to"} /
-     * {@code "less than or equal to"} and switch the constants below.
-     *
-     * <p><b>FLAG — date value format.</b> {@code from}/{@code to} are serialised
-     * to ISO-8601 strings (Bubble's expected input for date constraints, same
-     * assumption as date writes). Verify Bubble accepts ISO-8601 here and does
-     * not require epoch millis.
+     * <p>FLAG: strict {@code >}/{@code <} bounds (Bubble's documented date
+     * constraint types) — exact-touch endpoints are excluded; date values sent as
+     * ISO-8601. Verify against the live app if inclusive bounds / epoch millis are
+     * needed.
      */
-    public String buildConstraints(String companyId, String workerId,
+    public String buildConstraints(List<String> serviceInventoryIds, String workerId,
                                    OffsetDateTime from, OffsetDateTime to) {
-        // FLAG: strict bounds. Swap to "greater than or equal to" /
-        // "less than or equal to" if this app supports inclusive date constraints.
-        final String GTE = "greater than";
-        final String LTE = "less than";
-
         List<Map<String, Object>> constraints = new ArrayList<>();
-        constraints.add(constraint(F_COMPANY, "equals", companyId));
+        constraints.add(constraint(F_SERVICE, "in", serviceInventoryIds));
         if (hasText(workerId)) {
             constraints.add(constraint(F_WORKER, "equals", workerId));
         }
-        // Overlap: endTime >= from AND startTime <= to.
         if (from != null) {
-            constraints.add(constraint(F_END_TIME, GTE, from.toInstant().toString()));
+            constraints.add(constraint(F_END, "greater than", from.toInstant().toString()));
         }
         if (to != null) {
-            constraints.add(constraint(F_START_TIME, LTE, to.toInstant().toString()));
+            constraints.add(constraint(F_START, "less than", to.toInstant().toString()));
         }
+        return writeConstraints(constraints);
+    }
+
+    // --------------------------------------------------------------- writes
+
+    /**
+     * Body for POST /obj/events — title/time/worker only. NOTE: cannot set the
+     * {@code Service}/company scope (no service id on the DTO), so a created event
+     * is not attributable to a company until a Service is set elsewhere.
+     */
+    public Map<String, Object> toCreateBody(BookingDto dto) {
+        return mutableFields(dto);
+    }
+
+    /** Partial body for PATCH /obj/events/{id} — title/time/worker only. */
+    public Map<String, Object> toUpdateBody(BookingDto dto) {
+        return mutableFields(dto);
+    }
+
+    private Map<String, Object> mutableFields(BookingDto dto) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        putIfPresent(body, F_TITLE, dto.getTitle());
+        putIfPresent(body, F_START, dto.getStartTime());
+        putIfPresent(body, F_END, dto.getEndTime());
+        putIfPresent(body, F_WORKER, dto.getWorkerId());
+        return body;
+    }
+
+    // --------------------------------------------------------------- helpers
+
+    private String writeConstraints(List<Map<String, Object>> constraints) {
         try {
             return objectMapper.writeValueAsString(constraints);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to build Bubble constraints", e);
         }
     }
-
-    // --------------------------------------------------------------- writes
-
-    /**
-     * Body for POST /obj/events — company-scoped; only mapped, non-null fields.
-     * Date fields are sent as the incoming ISO-8601 strings from the DTO
-     * (FLAG: assumes Bubble accepts ISO-8601 for date writes, same as elsewhere).
-     */
-    public Map<String, Object> toCreateBody(BookingDto dto, String companyId) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put(F_COMPANY, companyId);
-        putIfPresent(body, F_TITLE, dto.getTitle());
-        putIfPresent(body, F_START_TIME, dto.getStartTime());
-        putIfPresent(body, F_END_TIME, dto.getEndTime());
-        putIfPresent(body, F_WORKER, dto.getWorkerId());
-        putIfPresent(body, F_STORE, dto.getStoreId());
-        putIfPresent(body, F_CUSTOMER_NAME, dto.getCustomerName());
-        putIfPresent(body, F_CUSTOMER_EMAIL, dto.getCustomerEmail());
-        return body;
-    }
-
-    /**
-     * Partial body for PATCH /obj/events/{id} — only the mutable, non-null
-     * fields from the PUT contract (title, startTime, endTime, workerId,
-     * storeId, customerName, customerEmail). Company scope is never changed.
-     */
-    public Map<String, Object> toUpdateBody(BookingDto dto) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        putIfPresent(body, F_TITLE, dto.getTitle());
-        putIfPresent(body, F_START_TIME, dto.getStartTime());
-        putIfPresent(body, F_END_TIME, dto.getEndTime());
-        putIfPresent(body, F_WORKER, dto.getWorkerId());
-        putIfPresent(body, F_STORE, dto.getStoreId());
-        putIfPresent(body, F_CUSTOMER_NAME, dto.getCustomerName());
-        putIfPresent(body, F_CUSTOMER_EMAIL, dto.getCustomerEmail());
-        return body;
-    }
-
-    /** The merchant a Bubble record belongs to (for ownership checks). */
-    public String companyOf(Map<String, Object> record) {
-        return readString(record, F_COMPANY);
-    }
-
-    // --------------------------------------------------------------- helpers
 
     private static Map<String, Object> constraint(String key, String type, Object value) {
         Map<String, Object> c = new LinkedHashMap<>();

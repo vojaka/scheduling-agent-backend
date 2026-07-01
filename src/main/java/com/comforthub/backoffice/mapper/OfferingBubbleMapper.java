@@ -44,42 +44,39 @@ public class OfferingBubbleMapper {
      */
     static final String F_COMPANY = "Belongs to";
 
-    /** Inferred from the entity {@code name} column. UNVERIFIED. */
-    static final String F_NAME = "Name";
+    /** CONFIRMED from the live offerings type: "Offering name" (text). */
+    static final String F_NAME = "Offering name";
 
-    /** Inferred from the entity {@code type} column. UNVERIFIED — likely an option set. */
-    static final String F_TYPE = "Type";
-
-    /**
-     * Inferred from the entity {@code status} column ('Active' | 'Inactive').
-     * UNVERIFIED — likely backed by an option set whose values are passed
-     * through verbatim (the GET ?status= param is already 'Active'/'Inactive').
-     */
-    static final String F_STATUS = "Status";
-
-    /** Inferred from {@code delivery_type}. UNVERIFIED. */
-    static final String F_DELIVERY_TYPE = "Delivery Type";
+    /** CONFIRMED: "Offering Type". */
+    static final String F_TYPE = "Offering Type";
 
     /**
-     * Inferred from {@code pay_options} (a TEXT[] in Postgres). UNVERIFIED —
-     * assumed to be a Bubble LIST field of texts/option values.
+     * CONFIRMED field: "Offering Activity Status" (an option set). The GET
+     * {@code ?status=} param and writes pass 'Active'/'Inactive' verbatim —
+     * VERIFY those match the option set's actual values.
      */
-    static final String F_PAY_OPTIONS = "Pay Options";
+    static final String F_STATUS = "Offering Activity Status";
 
-    /** Inferred from {@code price_source}. UNVERIFIED. */
-    static final String F_PRICE_SOURCE = "Price Source";
+    /** From {@code delivery_type}: best match is "Delivery Method Precision". VERIFY. */
+    static final String F_DELIVERY_TYPE = "Delivery Method Precision";
 
-    /** Inferred from {@code default_type}. UNVERIFIED. */
-    static final String F_DEFAULT_TYPE = "Default Type";
+    /** CONFIRMED: "Pay Options for this Offering" (a list of Pay Options). */
+    static final String F_PAY_OPTIONS = "Pay Options for this Offering";
 
-    /** Inferred from {@code limited_visibility} (Boolean). UNVERIFIED. */
+    /** CONFIRMED: "Price - Price Source" (Price Source Type). */
+    static final String F_PRICE_SOURCE = "Price - Price Source";
+
+    /** From {@code default_type}: best match is "Default Offering Category". VERIFY. */
+    static final String F_DEFAULT_TYPE = "Default Offering Category";
+
+    /** CONFIRMED: "Limited Visibility" (yes/no). */
     static final String F_LIMITED_VISIBILITY = "Limited Visibility";
 
-    /** Inferred from {@code unlimited_quantity} (Boolean). UNVERIFIED. */
-    static final String F_UNLIMITED_QUANTITY = "Unlimited Quantity";
+    /** CONFIRMED: "Q - Unlimited Quantity" (yes/no). */
+    static final String F_UNLIMITED_QUANTITY = "Q - Unlimited Quantity";
 
-    /** Inferred from {@code quantity_required} (Boolean). UNVERIFIED. */
-    static final String F_QUANTITY_REQUIRED = "Quantity Required";
+    /** CONFIRMED: "Q - QNTY required" (yes/no). */
+    static final String F_QUANTITY_REQUIRED = "Q - QNTY required";
 
     /**
      * INFERRED list field that models the inventory<->offering link (the Postgres
