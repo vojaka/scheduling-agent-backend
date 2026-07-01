@@ -86,6 +86,21 @@ public class InventoryBubbleMapper {
     // "Is Deleted". VERIFY: the exact key and whether the value is a real boolean.
     static final String F_IS_DELETED = "Is Deleted";
 
+    // Time preparation (minutes) for Goods.
+    static final String F_PREP_TIME = "Time(minutes) - Preparation time for Products";
+
+    // Event duration (minutes) for Services.
+    static final String F_DURATION = "Time(minutes) - Duration for Events";
+
+    // Workers list.
+    static final String F_WORKERS = "Workers";
+
+    // Main Image.
+    static final String F_MAIN_IMAGE = "Main Image";
+
+    // Secondary Images list.
+    static final String F_IMAGES = "Images";
+
     // INFERRED inventory<->offering link. Assumption: the inventory carries a
     // Bubble *list field of offerings* (list of offering ids), read directly for
     // getLinkedOfferings. The Postgres inventory_offerings join table is
@@ -121,6 +136,11 @@ public class InventoryBubbleMapper {
         dto.setPriceBaseWithVat(readBigDecimal(r, F_PRICE));
         dto.setDescription(readString(r, F_DESCRIPTION));
         dto.setIsDeleted(readBoolean(r, F_IS_DELETED));
+        dto.setPrepTimeMinutes(readInteger(r, F_PREP_TIME));
+        dto.setDuration(readInteger(r, F_DURATION));
+        dto.setWorkerIds(readStringList(r, F_WORKERS));
+        dto.setImageUrl(readString(r, F_MAIN_IMAGE));
+        dto.setSecondaryImageUrls(readStringList(r, F_IMAGES));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
     }
@@ -228,6 +248,15 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_VAT, dto.getVat());
         putIfPresent(body, F_PRICE, dto.getPriceBaseWithVat());
         putIfPresent(body, F_DESCRIPTION, dto.getDescription());
+        putIfPresent(body, F_PREP_TIME, dto.getPrepTimeMinutes());
+        putIfPresent(body, F_DURATION, dto.getDuration());
+        putIfPresent(body, F_MAIN_IMAGE, dto.getImageUrl());
+        if (dto.getWorkerIds() != null) {
+            body.put(F_WORKERS, dto.getWorkerIds());
+        }
+        if (dto.getSecondaryImageUrls() != null) {
+            body.put(F_IMAGES, dto.getSecondaryImageUrls());
+        }
         // New items are active.
         body.put(F_IS_DELETED, false);
         return body;
@@ -247,6 +276,15 @@ public class InventoryBubbleMapper {
         putIfPresent(body, F_VAT, dto.getVat());
         putIfPresent(body, F_PRICE, dto.getPriceBaseWithVat());
         putIfPresent(body, F_DESCRIPTION, dto.getDescription());
+        putIfPresent(body, F_PREP_TIME, dto.getPrepTimeMinutes());
+        putIfPresent(body, F_DURATION, dto.getDuration());
+        putIfPresent(body, F_MAIN_IMAGE, dto.getImageUrl());
+        if (dto.getWorkerIds() != null) {
+            body.put(F_WORKERS, dto.getWorkerIds());
+        }
+        if (dto.getSecondaryImageUrls() != null) {
+            body.put(F_IMAGES, dto.getSecondaryImageUrls());
+        }
         return body;
     }
 
@@ -318,7 +356,49 @@ public class InventoryBubbleMapper {
         if (v instanceof Boolean b) {
             return b;
         }
-        return Boolean.valueOf(String.valueOf(v));
+        String s = String.valueOf(v).trim();
+        if (s.equalsIgnoreCase("true") || s.equalsIgnoreCase("yes")) {
+            return Boolean.TRUE;
+        }
+        if (s.equalsIgnoreCase("false") || s.equalsIgnoreCase("no")) {
+            return Boolean.FALSE;
+        }
+        return null;
+    }
+
+    private static Integer readInteger(Map<String, Object> r, String key) {
+        String s = readString(r, key);
+        if (s == null) {
+            return null;
+        }
+        try {
+            // handle decimals if they come back from bubble (e.g. 60.0)
+            return (int) Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<String> readStringList(Map<String, Object> r, String key) {
+        if (r == null) {
+            return null;
+        }
+        Object v = r.get(key);
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof List<?> list) {
+            List<String> result = new ArrayList<>(list.size());
+            for (Object o : list) {
+                if (o != null) {
+                    result.add(String.valueOf(o));
+                }
+            }
+            return result;
+        }
+        String s = String.valueOf(v);
+        return s.isBlank() ? List.of() : List.of(s);
     }
 
     /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */

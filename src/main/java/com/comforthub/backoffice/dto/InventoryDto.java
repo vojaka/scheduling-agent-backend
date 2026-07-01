@@ -61,6 +61,25 @@ public class InventoryDto {
 
     private Boolean isDeleted;
 
+    private Integer prepTimeMinutes;
+
+    private Integer duration;
+
+    private List<String> workerIds;
+
+    private String imageUrl;
+
+    private List<String> secondaryImageUrls;
+
     /** ISO-8601 instant (Bubble "Created Date"). */
     private String createdAt;
+
+    // Price alias mapping
+    public BigDecimal getPrice() {
+        return priceBaseWithVat;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.priceBaseWithVat = price;
+    }
 }

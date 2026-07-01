@@ -1,5 +1,6 @@
 package com.comforthub.backoffice.dto;
 
+import java.math.BigDecimal;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -49,6 +50,14 @@ public class OfferingDto {
     private String priceSource;
 
     private String defaultType;
+
+    private BigDecimal price;
+
+    private Boolean defaultOffering;
+
+    private Integer minQuantity;
+
+    private Integer maxQuantity;
 
     /** ISO-8601 instant (Bubble "Created Date"). */
     private String createdAt;

@@ -86,6 +86,18 @@ public class OfferingBubbleMapper {
      */
     static final String F_INVENTORY_LIST = "Inventory";
 
+    // Price - Manual Inventory Price per single measurement.
+    static final String F_PRICE = "Price - Manual Inventory Price per single measurement";
+
+    // Default Offering boolean.
+    static final String F_DEFAULT_OFFERING = "Default Offering";
+
+    // Min Quantity.
+    static final String F_MIN_QUANTITY = "Q - Minimum QNTY Order";
+
+    // Max Quantity.
+    static final String F_MAX_QUANTITY = "Q - Maximum QNTY Order";
+
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
 
@@ -114,6 +126,10 @@ public class OfferingBubbleMapper {
         dto.setLimitedVisibility(readBoolean(r, F_LIMITED_VISIBILITY));
         dto.setUnlimitedQuantity(readBoolean(r, F_UNLIMITED_QUANTITY));
         dto.setQuantityRequired(readBoolean(r, F_QUANTITY_REQUIRED));
+        dto.setPrice(readBigDecimal(r, F_PRICE));
+        dto.setDefaultOffering(readBoolean(r, F_DEFAULT_OFFERING));
+        dto.setMinQuantity(readInteger(r, F_MIN_QUANTITY));
+        dto.setMaxQuantity(readInteger(r, F_MAX_QUANTITY));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
     }
@@ -152,6 +168,10 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_DEFAULT_OFFERING, dto.getDefaultOffering());
+        putIfPresent(body, F_MIN_QUANTITY, dto.getMinQuantity());
+        putIfPresent(body, F_MAX_QUANTITY, dto.getMaxQuantity());
         return body;
     }
 
@@ -173,6 +193,10 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_DEFAULT_OFFERING, dto.getDefaultOffering());
+        putIfPresent(body, F_MIN_QUANTITY, dto.getMinQuantity());
+        putIfPresent(body, F_MAX_QUANTITY, dto.getMaxQuantity());
         return body;
     }
 
@@ -323,6 +347,42 @@ public class OfferingBubbleMapper {
             }
         }
         return out;
+    }
+
+    private static String readString(Map<String, Object> r, String key) {
+        if (r == null) {
+            return null;
+        }
+        Object v = r.get(key);
+        if (v == null) {
+            return null;
+        }
+        String s = String.valueOf(v);
+        return s.isBlank() ? null : s;
+    }
+
+    private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
+        String s = readString(r, key);
+        if (s == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Integer readInteger(Map<String, Object> r, String key) {
+        String s = readString(r, key);
+        if (s == null) {
+            return null;
+        }
+        try {
+            return (int) Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */
