@@ -13,9 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Bookings CRUD — stored as Bubble {@code events}.
@@ -23,13 +27,21 @@ import java.util.Optional;
  * <p>Phase 5: Bubble is the source of truth; this controller proxies the Bubble
  * Data API and never touches PostgreSQL.
  *
- * <p><b>Company scoping is indirect.</b> The {@code events} type has no company
- * field; each event links to a {@code Service} (an Inventory), and inventory
- * carries the confirmed {@code Company} field. So every call resolves the
- * caller's company's inventory ids and constrains events to {@code Service in
- * [...]}. Bookings with no Service are not visible. See {@link BookingBubbleMapper}
- * for the structural mismatches (no store / customer-name / customer-email
- * fields, and create can't set the scope) that still need a product decision.
+ * <p><b>The {@code events} type is thin — related data lives on other records,
+ * resolved via batched second hops:</b>
+ * <ul>
+ *   <li><b>company scope</b> ← each event's {@code Service} (an Inventory), whose
+ *       {@code Company} is confirmed: resolve the company's inventory ids and
+ *       constrain events to {@code Service in [...]}. Bookings with no Service
+ *       are not visible.</li>
+ *   <li><b>store</b> ← each event's {@code Cart Item} → {@code Store (single)}</li>
+ *   <li><b>customer name/email</b> ← each event's {@code Customer (individual)}
+ *       (a User) → {@code FullName} / {@code email}</li>
+ * </ul>
+ * The store/customer hops are batched (one Data API call per related type per
+ * page — no N+1) using an {@code _id in [...]} constraint; if that constraint or
+ * a field key is off, those columns simply stay null (no crash). Create still
+ * can't set the company scope (no service id on the DTO) — flagged.
  */
 @RestController
 @RequestMapping("/api/bookings")
@@ -53,7 +65,8 @@ public class BookingController {
     /**
      * List bookings for the company (scoped through the company's inventories via
      * each event's Service). Optional {@code workerId}, and an ISO-8601
-     * {@code from}/{@code to} overlap window.
+     * {@code from}/{@code to} overlap window. Store and customer name/email are
+     * enriched via batched second hops.
      */
     @GetMapping
     public Page<BookingDto> getBookings(
@@ -82,10 +95,15 @@ public class BookingController {
                 BookingBubbleMapper.TYPE, constraints, cursor, limit,
                 BookingBubbleMapper.SORT_CREATED_DATE, true);
 
-        List<BookingDto> content = result.getResults().stream()
-                .map(r -> {
-                    BookingDto dto = mapper.toDto(r);
+        List<Map<String, Object>> events = result.getResults();
+        Map<String, String> storeByCartItem = resolveStores(events);
+        Map<String, Map<String, Object>> usersById = resolveCustomers(events);
+
+        List<BookingDto> content = events.stream()
+                .map(e -> {
+                    BookingDto dto = mapper.toDto(e);
                     dto.setCompanyId(companyId); // events has no company field of its own
+                    enrich(dto, e, storeByCartItem, usersById);
                     return dto;
                 })
                 .toList();
@@ -145,9 +163,7 @@ public class BookingController {
         return mapper.idsOf(inventories.getResults());
     }
 
-    /**
-     * True if the booking exists and its Service inventory belongs to the company.
-     */
+    /** True if the booking exists and its Service inventory belongs to the company. */
     private boolean ownedByCompany(String id, String companyId) {
         Map<String, Object> record = bubbleClient.get(BookingBubbleMapper.TYPE, id);
         if (record == null) {
@@ -157,16 +173,105 @@ public class BookingController {
         return service != null && companyInventoryIds(companyId).contains(service);
     }
 
+    /** Cart-item-id → store id, for the page's events (one batched Data API call). */
+    private Map<String, String> resolveStores(List<Map<String, Object>> events) {
+        Set<String> cartItemIds = new LinkedHashSet<>();
+        for (Map<String, Object> e : events) {
+            String ci = mapper.cartItemIdOf(e);
+            if (ci != null) {
+                cartItemIds.add(ci);
+            }
+        }
+        Map<String, String> byCartItem = new HashMap<>();
+        if (cartItemIds.isEmpty()) {
+            return byCartItem;
+        }
+        BubbleListResult cartItems = bubbleClient.list(
+                BookingBubbleMapper.CARTITEM_TYPE,
+                mapper.idInConstraints(cartItemIds), 0, cartItemIds.size());
+        for (Map<String, Object> ci : cartItems.getResults()) {
+            String id = idOf(ci);
+            if (id != null) {
+                byCartItem.put(id, mapper.storeOfCartItem(ci));
+            }
+        }
+        return byCartItem;
+    }
+
+    /** Customer-user-id → user record, for the page's events (one batched call). */
+    private Map<String, Map<String, Object>> resolveCustomers(List<Map<String, Object>> events) {
+        Set<String> customerIds = new LinkedHashSet<>();
+        for (Map<String, Object> e : events) {
+            String cu = mapper.customerIdOf(e);
+            if (cu != null) {
+                customerIds.add(cu);
+            }
+        }
+        Map<String, Map<String, Object>> byId = new HashMap<>();
+        if (customerIds.isEmpty()) {
+            return byId;
+        }
+        BubbleListResult users = bubbleClient.list(
+                BookingBubbleMapper.USER_TYPE,
+                mapper.idInConstraints(customerIds), 0, customerIds.size());
+        for (Map<String, Object> u : users.getResults()) {
+            String id = idOf(u);
+            if (id != null) {
+                byId.put(id, u);
+            }
+        }
+        return byId;
+    }
+
+    /** Fill store + customer name/email onto a DTO from the pre-resolved maps. */
+    private void enrich(BookingDto dto, Map<String, Object> event,
+                        Map<String, String> storeByCartItem,
+                        Map<String, Map<String, Object>> usersById) {
+        String ci = mapper.cartItemIdOf(event);
+        if (ci != null) {
+            dto.setStoreId(storeByCartItem.get(ci));
+        }
+        String cu = mapper.customerIdOf(event);
+        if (cu != null) {
+            Map<String, Object> user = usersById.get(cu);
+            if (user != null) {
+                dto.setCustomerName(mapper.nameOfUser(user));
+                dto.setCustomerEmail(mapper.emailOfUser(user));
+            }
+        }
+    }
+
+    private static String idOf(Map<String, Object> record) {
+        Object v = record.get("_id");
+        return v == null ? null : String.valueOf(v);
+    }
+
     /**
-     * Re-fetch the booking so the response reflects persisted state; falls back to
-     * the request body (with id + company set) if the read-back fails.
+     * Re-fetch the booking so the response reflects persisted state (enriching a
+     * single record via direct gets); falls back to the request body if the
+     * read-back fails.
      */
     private BookingDto reload(String id, String companyId, BookingDto fallback) {
         if (id != null) {
-            Map<String, Object> record = bubbleClient.get(BookingBubbleMapper.TYPE, id);
-            if (record != null) {
-                BookingDto dto = mapper.toDto(record);
+            Map<String, Object> event = bubbleClient.get(BookingBubbleMapper.TYPE, id);
+            if (event != null) {
+                BookingDto dto = mapper.toDto(event);
                 dto.setCompanyId(companyId);
+                String ci = mapper.cartItemIdOf(event);
+                if (ci != null) {
+                    Map<String, Object> cartItem = bubbleClient.get(BookingBubbleMapper.CARTITEM_TYPE, ci);
+                    if (cartItem != null) {
+                        dto.setStoreId(mapper.storeOfCartItem(cartItem));
+                    }
+                }
+                String cu = mapper.customerIdOf(event);
+                if (cu != null) {
+                    Map<String, Object> user = bubbleClient.get(BookingBubbleMapper.USER_TYPE, cu);
+                    if (user != null) {
+                        dto.setCustomerName(mapper.nameOfUser(user));
+                        dto.setCustomerEmail(mapper.emailOfUser(user));
+                    }
+                }
                 return dto;
             }
         }
