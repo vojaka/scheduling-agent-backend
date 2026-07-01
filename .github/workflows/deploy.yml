@@ -40,7 +40,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
+          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,monitor_containers.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
           target: "/app/scheduling-agent-backend"
           rm: false
 
@@ -55,12 +55,12 @@ jobs:
             cd /app/scheduling-agent-backend
             mkdir -p backups
             if docker ps --format '{{.Names}}' | grep -q "^scheduling-db$"; then
-              echo "Creating database backup..."
-              docker compose exec -T db pg_dump -U postgres postgres > backups/backup_$(date +%F_%H%M%S).sql
+              echo "Creating database backup of all databases (pg_dumpall)..."
+              docker compose exec -T db pg_dumpall -U postgres > backups/backup_all_$(date +%F_%H%M%S).sql
               
               echo "Cleaning up old backups (keeping last 5)..."
               cd backups
-              (ls -t backup_*.sql 2>/dev/null || true) | tail -n +6 | xargs -I {} rm -- {} || true
+              (ls -t backup_all_*.sql 2>/dev/null || true) | tail -n +6 | xargs -I {} rm -- {} || true
             else
               echo "Database container scheduling-db is not running. Skipping backup."
             fi
@@ -121,10 +121,10 @@ jobs:
               sleep 5
               
               # Restore database from snapshot
-              LATEST_BACKUP=$(ls -t backups/backup_*.sql | head -n1)
+              LATEST_BACKUP=$(ls -t backups/backup_all_*.sql | head -n1)
               if [ -n "$LATEST_BACKUP" ]; then
                 echo "Restoring database from $LATEST_BACKUP..."
-                docker compose exec -T db psql -U postgres postgres < "$LATEST_BACKUP"
+                docker compose exec -T db psql -U postgres < "$LATEST_BACKUP"
               fi
               
               # Rebuild and restart services
@@ -137,7 +137,7 @@ jobs:
               exit 1
             fi
 
-      - name: Setup Cron Job and Permissions
+      - name: Setup Cron Jobs and Permissions
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -146,10 +146,13 @@ jobs:
           script: |
             set -e
             cd /app/scheduling-agent-backend
-            chmod +x run_sync.sh
+            chmod +x run_sync.sh monitor_containers.sh
             
-            # Add to crontab if not exists
+            # Setup sync cron
             (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
+            
+            # Setup status monitor cron (runs every 5 mins)
+            (crontab -l 2>/dev/null | grep -Fq "monitor_containers.sh") || ( (crontab -l 2>/dev/null; echo "*/5 * * * * /bin/bash /app/scheduling-agent-backend/monitor_containers.sh >> /var/log/container_monitor.log 2>&1") | crontab - )
 
       - name: Sync Metabase Dashboards (Dev -> Live)
         uses: appleboy/ssh-action@v1.0.3
