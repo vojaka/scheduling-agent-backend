@@ -145,7 +145,14 @@ public class OrderBubbleMapper {
         putIfPresent(body, F_CUSTOMER, dto.getCustomerId());
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_AMOUNT, dto.getAmount());
-        putIfPresent(body, F_PAYMENT_STATUS, dto.getPaymentStatus());
+        
+        String paymentStatus = dto.getPaymentStatus();
+        if (paymentStatus != null && !"Unpaid".equalsIgnoreCase(paymentStatus) && !paymentStatus.isBlank()) {
+            body.put(F_PAYMENT_STATUS, paymentStatus);
+        } else {
+            body.put(F_PAYMENT_STATUS, null);
+        }
+        
         String status = dto.getStatus() != null ? dto.getStatus() : "not_started";
         body.put(F_STATUS, statusToBubble(status));
         return body;
@@ -158,7 +165,14 @@ public class OrderBubbleMapper {
         putIfPresent(body, F_CUSTOMER, dto.getCustomerId());
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_AMOUNT, dto.getAmount());
-        putIfPresent(body, F_PAYMENT_STATUS, dto.getPaymentStatus());
+        
+        String paymentStatus = dto.getPaymentStatus();
+        if (paymentStatus != null && !"Unpaid".equalsIgnoreCase(paymentStatus) && !paymentStatus.isBlank()) {
+            body.put(F_PAYMENT_STATUS, paymentStatus);
+        } else {
+            body.put(F_PAYMENT_STATUS, null);
+        }
+        
         return body;
     }
 
