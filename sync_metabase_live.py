@@ -111,8 +111,8 @@ def main():
     dev_url = "http://localhost:3000"
     live_url = "http://localhost:3002"
     email = "kim.smirnov@gmail.com"
-    password = "ComfortHubPass2026!"
-    db_password = os.environ.get("POSTGRES_PASSWORD", "comfort-hub-db-pass-2026")
+    password = os.environ.get("METABASE_ADMIN_PASSWORD", "")
+    db_password = os.environ.get("POSTGRES_PASSWORD", "")
 
     # Wait for both services to be ready
     if not wait_for_metabase(dev_url, "Dev"):

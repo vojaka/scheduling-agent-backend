@@ -9,8 +9,8 @@ def main():
     
     metabase_url = "http://localhost:3000"
     admin_email = "kim.smirnov@gmail.com"
-    admin_password = "ComfortHubPass2026!"
-    db_password = os.environ.get("POSTGRES_PASSWORD", "comfort-hub-db-pass-2026")
+    admin_password = os.environ.get("METABASE_ADMIN_PASSWORD", "")
+    db_password = os.environ.get("POSTGRES_PASSWORD", "")
 
     # 1. Fetch setup token
     print("Checking Metabase status and fetching setup token...")
