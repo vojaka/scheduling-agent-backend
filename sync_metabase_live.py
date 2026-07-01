@@ -1,6 +1,22 @@
 import os
 import requests
 import sys
+import time
+
+def wait_for_metabase(url, name, timeout_sec=120):
+    print(f"Waiting for Metabase {name} to be ready at {url}...")
+    start_time = time.time()
+    while time.time() - start_time < timeout_sec:
+        try:
+            r = requests.get(f"{url}/api/session/properties", timeout=3)
+            if r.status_code == 200:
+                print(f"Metabase {name} is ready!")
+                return True
+        except Exception:
+            pass
+        time.sleep(3)
+    print(f"Timed out waiting for Metabase {name} to be ready.")
+    return False
 
 def get_session(url, email, password):
     # Get properties to check setup state
@@ -97,6 +113,12 @@ def main():
     email = "kim.smirnov@gmail.com"
     password = "ComfortHubPass2026!"
     db_password = os.environ.get("POSTGRES_PASSWORD", "comfort-hub-db-pass-2026")
+
+    # Wait for both services to be ready
+    if not wait_for_metabase(dev_url, "Dev"):
+        sys.exit(1)
+    if not wait_for_metabase(live_url, "Live"):
+        sys.exit(1)
 
     # Get session tokens
     print("Authenticating Dev Metabase...")
