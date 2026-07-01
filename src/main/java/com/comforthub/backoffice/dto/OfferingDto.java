@@ -27,7 +27,7 @@ public class OfferingDto {
 
     private String type;
 
-    /** 'Active' | 'Inactive' */
+    /** 'Active' | 'Draft' | 'Archive' | 'Inactive' */
     private String status;
 
     private Boolean limitedVisibility;

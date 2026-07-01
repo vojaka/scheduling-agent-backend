@@ -89,7 +89,7 @@ public class OfferingBubbleMapper {
 
     /**
      * Bubble constraints JSON scoping to {@code companyId} (the merchant) plus an
-     * optional {@code status} equals-filter ('Active' / 'Inactive').
+     * optional {@code status} equals-filter (e.g. 'Active', 'Draft', 'Archive', or 'Inactive').
      */
     public String buildConstraints(String companyId, String status) {
         List<Map<String, Object>> constraints = new ArrayList<>();

@@ -33,7 +33,7 @@ public class OfferingEntity {
     @Column(name = "type")
     private String type;
 
-    /** 'Active' | 'Inactive' */
+    /** 'Active' | 'Draft' | 'Archive' | 'Inactive' */
     @Column(name = "status")
     private String status;
 

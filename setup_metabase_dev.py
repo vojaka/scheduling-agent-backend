@@ -120,6 +120,7 @@ def main():
     questions = [
         {
             "name": "Total Hours Scheduled per Worker",
+            "description": "Total scheduled hours per worker for the current week. #backoffice",
             "dataset_query": {
                 "database": db_id,
                 "type": "native",
@@ -140,6 +141,7 @@ ORDER BY total_hours DESC;"""
         },
         {
             "name": "Shift Distribution by Store",
+            "description": "Shift distribution across stores. #backoffice",
             "dataset_query": {
                 "database": db_id,
                 "type": "native",
@@ -158,6 +160,7 @@ ORDER BY total_shifts DESC;"""
         },
         {
             "name": "Estimated Payroll Cost per Worker",
+            "description": "Estimated payroll cost per worker based on wage rates. #backoffice",
             "dataset_query": {
                 "database": db_id,
                 "type": "native",
@@ -184,10 +187,17 @@ ORDER BY est_cost_eur DESC;"""
             r = requests.post(f"{metabase_url}/api/card", headers=headers, json=q, timeout=10)
             r.raise_for_status()
             card = r.json()
-            card_ids.append(card["id"])
-            print(f"- Created report: '{q['name']}' (ID: {card['id']})")
+            card_id = card["id"]
+            card_ids.append(card_id)
+            print(f"- Created report: '{q['name']}' (ID: {card_id})")
+
+            # Enable embedding on this card
+            requests.put(f"{metabase_url}/api/card/{card_id}", headers=headers, json={
+                "enable_embedding": True
+            }, timeout=10).raise_for_status()
+            print(f"- Enabled embedding on card: '{q['name']}'")
         except Exception as e:
-            print(f"FAILED to create report '{q['name']}': {e}")
+            print(f"FAILED to create report or enable embedding '{q['name']}': {e}")
             sys.exit(1)
 
     # 5. Create Dashboard
@@ -196,7 +206,7 @@ ORDER BY est_cost_eur DESC;"""
     try:
         r = requests.post(f"{metabase_url}/api/dashboard", headers=headers, json={
             "name": "Workforce Scheduling Analytics",
-            "description": "Overview of scheduled hours, shift counts, and estimated payroll costs."
+            "description": "Overview of scheduled hours, shift counts, and estimated payroll costs. #backoffice"
         }, timeout=10)
         r.raise_for_status()
         dash_id = r.json()["id"]

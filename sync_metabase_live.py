@@ -282,6 +282,15 @@ def main():
                     print(f"  Failed to create card '{card_name}': {e}")
                     continue
 
+            # Enable embedding on Live card
+            try:
+                requests.put(f"{live_url}/api/card/{live_card_id}", headers=live_headers, json={
+                    "enable_embedding": True
+                }, timeout=10).raise_for_status()
+                print(f"  Enabled embedding on Live card '{card_name}'")
+            except Exception as e:
+                print(f"  Failed to enable embedding on Live card '{card_name}': {e}")
+
             card_id_map[dev_card_id] = live_card_id
 
         # Associate Mapped Cards with Live Dashboard Layout

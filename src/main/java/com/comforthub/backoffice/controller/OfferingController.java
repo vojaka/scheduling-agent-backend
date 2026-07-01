@@ -60,7 +60,7 @@ public class OfferingController {
 
     /**
      * List offerings for the company.
-     * Optional {@code status} param filters by 'Active' or 'Inactive'. Bubble
+     * Optional {@code status} param filters by 'Active', 'Draft', 'Archive' or 'Inactive'. Bubble
      * cursor pagination is mapped onto the Spring Data {@link Page} envelope the
      * UI expects.
      */

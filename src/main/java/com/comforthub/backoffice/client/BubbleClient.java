@@ -20,6 +20,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,12 +30,14 @@ public class BubbleClient {
     private static final Logger log = LoggerFactory.getLogger(BubbleClient.class);
 
     private final RestClient restClient;
+    private final String bubbleBaseUrl;
 
     @Value("${bubble.api.token}")
     private String bubbleToken;
 
     public BubbleClient(RestClient.Builder restClientBuilder,
                         @Value("${bubble.api.base-url}") String baseUrl) {
+        this.bubbleBaseUrl = baseUrl;
         this.restClient = restClientBuilder
                 .baseUrl(baseUrl)
                 // JDK HttpClient supports PATCH (used by update()); the default
@@ -414,5 +417,62 @@ public class BubbleClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class BubbleObjectResponseWrapper {
         private Map<String, Object> response;
+    }
+
+    public String uploadFile(String filename, byte[] fileBytes) {
+        try {
+            log.info("Uploading file '{}' to Bubble...", filename);
+            String baseApiUrl = bubbleBaseUrl.endsWith("/obj") 
+                    ? bubbleBaseUrl.substring(0, bubbleBaseUrl.length() - 4) 
+                    : bubbleBaseUrl;
+            String uploadUrl = baseApiUrl + "/fileupload";
+
+            String base64Content = java.util.Base64.getEncoder().encodeToString(fileBytes);
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("name", filename);
+            payload.put("contents", base64Content);
+            payload.put("private", false);
+
+            String responseStr = restClient.post()
+                    .uri(uploadUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        if (bubbleToken != null && !bubbleToken.isEmpty() && !bubbleToken.equals("default-bubble-token")) {
+                            headers.set("Authorization", "Bearer " + bubbleToken);
+                        }
+                    })
+                    .body(payload)
+                    .retrieve()
+                    .body(String.class);
+
+            String fileUrl = null;
+            if (responseStr != null) {
+                responseStr = responseStr.trim();
+                if (responseStr.startsWith("{")) {
+                    try {
+                        Map<String, Object> map = new com.fasterxml.jackson.databind.ObjectMapper().readValue(responseStr, Map.class);
+                        if (map.containsKey("response")) {
+                            fileUrl = (String) map.get("response");
+                        } else if (map.containsKey("url")) {
+                            fileUrl = (String) map.get("url");
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to parse Bubble upload response as JSON, falling back to raw string: {}", responseStr);
+                    }
+                }
+                if (fileUrl == null) {
+                    fileUrl = responseStr;
+                }
+                if (fileUrl.startsWith("//")) {
+                    fileUrl = "https:" + fileUrl;
+                }
+            }
+            log.info("Successfully uploaded file. Bubble URL: {}", fileUrl);
+            return fileUrl;
+        } catch (Exception e) {
+            log.error("Failed to upload file to Bubble: {}", e.getMessage(), e);
+            throw new RuntimeException("Bubble upload failed: " + e.getMessage(), e);
+        }
     }
 }
