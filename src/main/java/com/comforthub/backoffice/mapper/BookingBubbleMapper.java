@@ -57,6 +57,22 @@ public class BookingBubbleMapper {
     public static final String INVENTORY_TYPE = "inventory";
     static final String INVENTORY_COMPANY_FIELD = "Company";
 
+    // ===== Enrichment refs on the event (resolved via a second, batched hop) ===
+    /** Event -> Cart Item ref; the store lives on the Cart Item. */
+    static final String F_CART_ITEM = "Cart Item";
+    /** Event -> customer (a User); name/email live on that User. */
+    static final String F_CUSTOMER  = "Customer (individual)";
+
+    /** Bubble object type + store field for the Cart Item (store hop). */
+    public static final String CARTITEM_TYPE = "cartitem";
+    static final String CARTITEM_STORE_FIELD = "Store (single)";
+
+    /** Bubble object type + name/email fields for the User (customer hop). */
+    public static final String USER_TYPE = "user";
+    static final String USER_NAME_FIELD  = "FullName";
+    /** Bubble's built-in auth email — VERIFY it's exposed to the Data API token. */
+    static final String USER_EMAIL_FIELD = "email";
+
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
 
@@ -90,6 +106,36 @@ public class BookingBubbleMapper {
     /** The Service (inventory id) a booking references — for company ownership checks. */
     public String serviceOf(Map<String, Object> record) {
         return readString(record, F_SERVICE);
+    }
+
+    /** The Cart Item id an event references (store is resolved through it). */
+    public String cartItemIdOf(Map<String, Object> record) {
+        return readString(record, F_CART_ITEM);
+    }
+
+    /** The customer User id an event references (name/email resolved through it). */
+    public String customerIdOf(Map<String, Object> record) {
+        return readString(record, F_CUSTOMER);
+    }
+
+    /** The store id held on a Cart Item record. */
+    public String storeOfCartItem(Map<String, Object> cartItem) {
+        return readString(cartItem, CARTITEM_STORE_FIELD);
+    }
+
+    /** The display name held on a customer User record. */
+    public String nameOfUser(Map<String, Object> user) {
+        return readString(user, USER_NAME_FIELD);
+    }
+
+    /** The email held on a customer User record. */
+    public String emailOfUser(Map<String, Object> user) {
+        return readString(user, USER_EMAIL_FIELD);
+    }
+
+    /** Constraints selecting records whose {@code _id} is one of {@code ids}. */
+    public String idInConstraints(java.util.Collection<String> ids) {
+        return writeConstraints(List.of(constraint("_id", "in", new ArrayList<>(ids))));
     }
 
     // ------------------------------------------------------- constraints/scope
