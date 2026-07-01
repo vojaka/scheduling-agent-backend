@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Offering payload exchanged with the React backoffice UI.
@@ -37,6 +38,13 @@ public class OfferingDto {
     private Boolean quantityRequired;
 
     private String deliveryType;
+
+    /**
+     * Bubble {@code delivery_types} option-set values, passed through verbatim
+     * ("Self pick up", "Courier delivery", "Merchant delivery"). Supports the
+     * Offerings page's delivery-types column (UI issue #32).
+     */
+    private List<String> deliveryTypes;
 
     /** Former PostgreSQL {@code text[]} — a list of pay-option codes. */
     private String[] payOptions;

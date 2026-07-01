@@ -37,6 +37,13 @@ public class BookingDto {
     /** Worker assigned to this booking (Bubble user id). */
     private String workerId;
 
+    /**
+     * The booked Service — an inventory item (Bubble {@code Service} ref, the
+     * confirmed field bookings are company-scoped through). Must belong to the
+     * caller's company on create (#115).
+     */
+    private String serviceId;
+
     private String customerEmail;
 
     private String customerName;
