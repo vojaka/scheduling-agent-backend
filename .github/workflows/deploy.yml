@@ -33,6 +33,27 @@ jobs:
           target: "/app/scheduling-agent-backend"
           rm: false
 
+      - name: Backup Database on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/scheduling-agent-backend
+            mkdir -p backups
+            if docker ps --format '{{.Names}}' | grep -q "^scheduling-db$"; then
+              echo "Creating database backup..."
+              docker compose exec -T db pg_dump -U postgres postgres > backups/backup_$(date +%F_%H%M%S).sql
+              
+              echo "Cleaning up old backups (keeping last 5)..."
+              cd backups
+              (ls -t backup_*.sql 2>/dev/null || true) | tail -n +6 | xargs -I {} rm -- {} || true
+            else
+              echo "Database container scheduling-db is not running. Skipping backup."
+            fi
+
       - name: Rebuild and Restart Backend
         uses: appleboy/ssh-action@v1.0.3
         with:
