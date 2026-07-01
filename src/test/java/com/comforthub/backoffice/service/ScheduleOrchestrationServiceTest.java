@@ -28,6 +28,11 @@ import static org.mockito.Mockito.when;
  * in simulation mode — deliberately, so the filtering logic (which runs before the live/simulation
  * branch) can be exercised without a real Gemini HTTP call. The compact prompt payload itself is
  * covered directly in {@code GeminiPromptBuilderTest}.
+ *
+ * <p>Note: {@code runSimulatedLLM} always assigns shifts to a "name1"/"name2" pair, falling back to
+ * a hardcoded "Lily" for name2 when fewer than 2 workers survive filtering — so tests below assert
+ * the <em>filtered-out</em> worker never appears, rather than asserting every shift belongs to the
+ * one active worker (which would incorrectly fail on the "Lily" fallback shifts).
  */
 @ExtendWith(MockitoExtension.class)
 class ScheduleOrchestrationServiceTest {
@@ -80,8 +85,11 @@ class ScheduleOrchestrationServiceTest {
 
         assertThat(response.getOrchestratorLogs()).anyMatch(l -> l.contains("Filtered to 1 active workers."));
         assertThat(response.getProposedShifts()).isNotEmpty();
+        // The inactive worker must never be handed to the generator at all - only "Active Anna"
+        // (and the simulator's hardcoded "Lily" fallback for the absent second worker) can appear.
         assertThat(response.getProposedShifts()).extracting(s -> s.getAssignedUser())
-                .allMatch(u -> u.equals("Active Anna"));
+                .doesNotContain("Inactive Ivo")
+                .contains("Active Anna");
     }
 
     @Test
