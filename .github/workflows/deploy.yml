@@ -20,8 +20,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-#      - name: Run Maven Tests
-#        run: mvn clean test
+      # #113: run the full test suite BEFORE anything touches the VPS — main
+      # deploys straight to production (no staging), so a red suite must fail
+      # the job here, ahead of the backup/copy/deploy steps below.
+      - name: Run Maven Tests
+        run: mvn clean test
 
       - name: Backup Current Directory on VPS
         uses: appleboy/ssh-action@v1.0.3
