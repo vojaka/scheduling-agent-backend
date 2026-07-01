@@ -4,6 +4,7 @@ import com.comforthub.backoffice.client.BubbleClient;
 import com.comforthub.backoffice.client.BubbleClient.BubbleListResult;
 import com.comforthub.backoffice.dto.BookingDto;
 import com.comforthub.backoffice.mapper.BookingBubbleMapper;
+import com.comforthub.backoffice.repository.BubbleUserRepository;
 import com.comforthub.backoffice.service.CurrentUserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -13,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,7 +25,9 @@ import java.util.Set;
  * Bookings CRUD — stored as Bubble {@code events}.
  *
  * <p>Phase 5: Bubble is the source of truth; this controller proxies the Bubble
- * Data API and never touches PostgreSQL.
+ * Data API for booking data. (The one PostgreSQL read is the synced user mirror,
+ * used to validate worker references on create — the same source the JWT
+ * principal itself resolves through.)
  *
  * <p><b>The {@code events} type is thin — related data lives on other records,
  * resolved via batched second hops:</b>
@@ -40,8 +42,12 @@ import java.util.Set;
  * </ul>
  * The store/customer hops are batched (one Data API call per related type per
  * page — no N+1) using an {@code _id in [...]} constraint; if that constraint or
- * a field key is off, those columns simply stay null (no crash). Create still
- * can't set the company scope (no service id on the DTO) — flagged.
+ * a field key is off, those columns simply stay null (no crash).
+ *
+ * <p><b>#115:</b> create validates cross-tenant references — a {@code serviceId}
+ * must be one of the caller's company inventories and a {@code workerId} one of
+ * the company's users (400 otherwise). Setting {@code serviceId} also makes the
+ * created event company-attributable (closing the earlier scoping gap).
  */
 @RestController
 @RequestMapping("/api/bookings")
@@ -53,13 +59,16 @@ public class BookingController {
     private final BubbleClient bubbleClient;
     private final BookingBubbleMapper mapper;
     private final CurrentUserService currentUserService;
+    private final BubbleUserRepository userRepository;
 
     public BookingController(BubbleClient bubbleClient,
                              BookingBubbleMapper mapper,
-                             CurrentUserService currentUserService) {
+                             CurrentUserService currentUserService,
+                             BubbleUserRepository userRepository) {
         this.bubbleClient = bubbleClient;
         this.mapper = mapper;
         this.currentUserService = currentUserService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -113,20 +122,29 @@ public class BookingController {
     }
 
     /**
-     * Create a booking (title/time/worker only). NOTE: cannot set the company
-     * scope (events has no company field and the DTO has no service id), so the
-     * created event isn't attributable to a company until a Service is set — a
-     * structural limitation flagged for a product decision.
+     * Create a booking. <b>#115:</b> cross-tenant references are validated before
+     * the write — a {@code serviceId} must be one of the caller's company
+     * inventories and a {@code workerId} must belong to the company's users (400
+     * on a foreign reference); no resolvable company context at all is 403.
      */
     @PostMapping
     public ResponseEntity<BookingDto> createBooking(@RequestBody BookingDto body) {
-        return currentUserService.currentCompanyId()
-                .map(companyId -> {
-                    String newId = bubbleClient.create(
-                            BookingBubbleMapper.TYPE, mapper.toCreateBody(body));
-                    return ResponseEntity.ok(reload(newId, companyId, body));
-                })
-                .orElse(ResponseEntity.status(403).build());
+        Optional<String> companyOpt = currentUserService.currentCompanyId();
+        if (companyOpt.isEmpty()) {
+            return ResponseEntity.status(403).build();
+        }
+        String companyId = companyOpt.get();
+
+        if (hasText(body.getServiceId())
+                && !companyInventoryIds(companyId).contains(body.getServiceId())) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (hasText(body.getWorkerId()) && !isCompanyWorker(companyId, body.getWorkerId())) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String newId = bubbleClient.create(BookingBubbleMapper.TYPE, mapper.toCreateBody(body));
+        return ResponseEntity.ok(reload(newId, companyId, body));
     }
 
     @PutMapping("/{id}")
@@ -161,6 +179,16 @@ public class BookingController {
                 BookingBubbleMapper.INVENTORY_TYPE,
                 mapper.inventoryCompanyConstraints(companyId), 0, BUBBLE_MAX_LIMIT);
         return mapper.idsOf(inventories.getResults());
+    }
+
+    /**
+     * True if {@code workerId} (a Bubble user id) is one of the company's synced
+     * users. Uses the PostgreSQL user mirror — the same company-membership source
+     * {@link CurrentUserService} resolves the JWT principal through.
+     */
+    private boolean isCompanyWorker(String companyId, String workerId) {
+        return userRepository.findByCompanyId(companyId).stream()
+                .anyMatch(u -> workerId.equals(u.getBubbleId()));
     }
 
     /** True if the booking exists and its Service inventory belongs to the company. */
@@ -244,6 +272,10 @@ public class BookingController {
     private static String idOf(Map<String, Object> record) {
         Object v = record.get("_id");
         return v == null ? null : String.valueOf(v);
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.isBlank();
     }
 
     /**
