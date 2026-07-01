@@ -18,19 +18,18 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Bookings CRUD — calendar events tied to workers/stores.
+ * Bookings CRUD — stored as Bubble {@code events}.
  *
- * <p>Phase 5: Bubble is the source of truth. This controller <b>proxies the
- * Bubble Data API</b> for both reads and writes and never touches PostgreSQL
- * (which is analytics-only, fed by the hourly ETL). Every call is scoped to the
- * caller's company via a Bubble {@code constraints} filter.
+ * <p>Phase 5: Bubble is the source of truth; this controller proxies the Bubble
+ * Data API and never touches PostgreSQL.
  *
- * <p>The REST contract is unchanged from the former JPA implementation (same
- * routes, params and JSON shape, including the Spring Data {@code Page} envelope
- * and the ISO-8601 {@code from}/{@code to} window params), so the React UI needs
- * no changes. The Bubble field-alias mapping lives entirely in
- * {@link BookingBubbleMapper} — see that class for the (inferred) object type
- * and field keys that must be verified.
+ * <p><b>Company scoping is indirect.</b> The {@code events} type has no company
+ * field; each event links to a {@code Service} (an Inventory), and inventory
+ * carries the confirmed {@code Company} field. So every call resolves the
+ * caller's company's inventory ids and constrains events to {@code Service in
+ * [...]}. Bookings with no Service are not visible. See {@link BookingBubbleMapper}
+ * for the structural mismatches (no store / customer-name / customer-email
+ * fields, and create can't set the scope) that still need a product decision.
  */
 @RestController
 @RequestMapping("/api/bookings")
@@ -52,11 +51,9 @@ public class BookingController {
     }
 
     /**
-     * List bookings for the company.
-     * Optional params: workerId, from (ISO-8601), to (ISO-8601).
-     * Returns bookings whose window overlaps [from, to]. Bubble cursor
-     * pagination is mapped onto the Spring Data {@link Page} envelope the UI
-     * expects.
+     * List bookings for the company (scoped through the company's inventories via
+     * each event's Service). Optional {@code workerId}, and an ISO-8601
+     * {@code from}/{@code to} overlap window.
      */
     @GetMapping
     public Page<BookingDto> getBookings(
@@ -70,9 +67,14 @@ public class BookingController {
         if (companyOpt.isEmpty()) {
             return Page.empty(pageable);
         }
+        String companyId = companyOpt.get();
 
-        String constraints = mapper.buildConstraints(companyOpt.get(), workerId, from, to);
+        List<String> inventoryIds = companyInventoryIds(companyId);
+        if (inventoryIds.isEmpty()) {
+            return new PageImpl<>(List.of(), pageable, 0);
+        }
 
+        String constraints = mapper.buildConstraints(inventoryIds, workerId, from, to);
         int limit = Math.min(pageable.getPageSize(), BUBBLE_MAX_LIMIT);
         int cursor = (int) pageable.getOffset();
 
@@ -81,22 +83,30 @@ public class BookingController {
                 BookingBubbleMapper.SORT_CREATED_DATE, true);
 
         List<BookingDto> content = result.getResults().stream()
-                .map(mapper::toDto)
+                .map(r -> {
+                    BookingDto dto = mapper.toDto(r);
+                    dto.setCompanyId(companyId); // events has no company field of its own
+                    return dto;
+                })
                 .toList();
 
-        // Bubble reports the count in this page and how many remain after it;
-        // total = items before this page + this page + items remaining.
         long total = (long) cursor + result.getCount() + result.getRemaining();
         return new PageImpl<>(content, pageable, total);
     }
 
+    /**
+     * Create a booking (title/time/worker only). NOTE: cannot set the company
+     * scope (events has no company field and the DTO has no service id), so the
+     * created event isn't attributable to a company until a Service is set — a
+     * structural limitation flagged for a product decision.
+     */
     @PostMapping
     public ResponseEntity<BookingDto> createBooking(@RequestBody BookingDto body) {
         return currentUserService.currentCompanyId()
                 .map(companyId -> {
-                    Map<String, Object> createBody = mapper.toCreateBody(body, companyId);
-                    String newId = bubbleClient.create(BookingBubbleMapper.TYPE, createBody);
-                    return ResponseEntity.ok(reload(newId, body));
+                    String newId = bubbleClient.create(
+                            BookingBubbleMapper.TYPE, mapper.toCreateBody(body));
+                    return ResponseEntity.ok(reload(newId, companyId, body));
                 })
                 .orElse(ResponseEntity.status(403).build());
     }
@@ -108,7 +118,7 @@ public class BookingController {
                 .filter(companyId -> ownedByCompany(id, companyId))
                 .map(companyId -> {
                     bubbleClient.update(BookingBubbleMapper.TYPE, id, mapper.toUpdateBody(body));
-                    return ResponseEntity.ok(reload(id, body));
+                    return ResponseEntity.ok(reload(id, companyId, body));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -127,27 +137,43 @@ public class BookingController {
 
     // ------------------------------------------------------------- helpers
 
-    /** True if the Bubble booking {@code id} exists and belongs to {@code companyId}. */
-    private boolean ownedByCompany(String id, String companyId) {
-        Map<String, Object> record = bubbleClient.get(BookingBubbleMapper.TYPE, id);
-        return record != null && companyId.equals(mapper.companyOf(record));
+    /** The Bubble inventory ids that belong to {@code companyId}. */
+    private List<String> companyInventoryIds(String companyId) {
+        BubbleListResult inventories = bubbleClient.list(
+                BookingBubbleMapper.INVENTORY_TYPE,
+                mapper.inventoryCompanyConstraints(companyId), 0, BUBBLE_MAX_LIMIT);
+        return mapper.idsOf(inventories.getResults());
     }
 
     /**
-     * Re-fetch the booking from Bubble so the response reflects persisted state.
-     * Falls back to the request body (with the id set) if the read-back fails —
-     * e.g. when privacy rules hide the freshly written record from this token.
+     * True if the booking exists and its Service inventory belongs to the company.
      */
-    private BookingDto reload(String id, BookingDto fallback) {
+    private boolean ownedByCompany(String id, String companyId) {
+        Map<String, Object> record = bubbleClient.get(BookingBubbleMapper.TYPE, id);
+        if (record == null) {
+            return false;
+        }
+        String service = mapper.serviceOf(record);
+        return service != null && companyInventoryIds(companyId).contains(service);
+    }
+
+    /**
+     * Re-fetch the booking so the response reflects persisted state; falls back to
+     * the request body (with id + company set) if the read-back fails.
+     */
+    private BookingDto reload(String id, String companyId, BookingDto fallback) {
         if (id != null) {
             Map<String, Object> record = bubbleClient.get(BookingBubbleMapper.TYPE, id);
             if (record != null) {
-                return mapper.toDto(record);
+                BookingDto dto = mapper.toDto(record);
+                dto.setCompanyId(companyId);
+                return dto;
             }
         }
         if (fallback != null) {
             fallback.setId(id);
             fallback.setBubbleId(id);
+            fallback.setCompanyId(companyId);
         }
         return fallback;
     }

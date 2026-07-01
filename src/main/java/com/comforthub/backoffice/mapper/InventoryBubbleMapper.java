@@ -46,8 +46,10 @@ public class InventoryBubbleMapper {
     // field labelled name).
     static final String F_NAME = "Name";
 
-    // Service/Good classification — mirrors Order's confirmed "Type" key.
-    static final String F_TYPE = "Type";
+    // Classification. The live inventory type has no plain "Type" field; the
+    // closest is "Category_Type" (a Category Type). VERIFY — may not fit the old
+    // string value; a wrong/absent key just leaves this null.
+    static final String F_TYPE = "Category_Type";
 
     // Category ref at the Main Product level (parent category). Guessed from the
     // former JPA column main_product_id + this app's display-name convention.
