@@ -29,7 +29,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
+          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
           target: "/app/scheduling-agent-backend"
           rm: false
 
@@ -66,3 +66,18 @@ jobs:
             docker compose build backend
             docker compose up -d
             docker compose ps
+
+      - name: Setup Cron Job and Permissions
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/scheduling-agent-backend
+            chmod +x run_sync.sh
+            
+            # Add to crontab if not exists
+            CRON_JOB="0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1"
+            (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab - )
