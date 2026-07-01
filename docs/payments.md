@@ -24,6 +24,19 @@ Both providers use hosted payment pages + provider-side tokenization. The backen
 never sees or stores a PAN. Recurring uses provider-issued tokens only
 (`token_ref` + masked display PAN).
 
+## Auth & company scoping
+
+`/api/payments/**` requires the Auth0 JWT (the same resource-server chain as the
+rest of `/api/**`). The caller's company is resolved from the JWT principal via
+`CurrentUserService` and stamped onto each request **server-side** — a
+client-supplied `companyId` in the body is ignored. Callers with no resolvable
+company get `403`. (Ownership of a referenced payment on refund is enforced once
+persistence lands — #83.)
+
+`/webhooks/{provider}` is public (it sits outside `/api/**`) and is authenticated
+by provider signature inside the provider implementation instead; a permanent
+failure such as a bad signature returns `400` so the provider stops retrying.
+
 ## Persistence seam — deferred on purpose
 
 `PaymentRecorder` (package `payment.spi`) is the single persistence port. Until the
