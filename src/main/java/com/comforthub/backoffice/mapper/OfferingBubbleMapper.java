@@ -25,10 +25,18 @@ import java.util.Map;
  * convention that the Data API exposes human display names (e.g. {@code
  * "Merchant"}, {@code "Store"}) and that constraints use those same keys. Each
  * constant is annotated with the reasoning and an {@code UNVERIFIED} flag. They
- * MUST be checked against a live Bubble {@code offerings} record (and the option
- * sets behind {@code status} / {@code type} / {@code deliveryType}) before this
+ * MUST be checked against a live Bubble {@code offerings} record before this
  * goes to production. A wrong key fails silently: reads come back null, writes
  * are dropped by Bubble.
+ *
+ * <p>{@code F_STATUS} and {@code F_DELIVERY_TYPE} are now CONFIRMED against the
+ * live option-set catalog (`context.md`, verified 2026-07-01 — see backend
+ * issues #92/#94/#99): {@code Offering Activity Status} is
+ * Draft/Active/Archive/Deleted, and {@code Delivery Types} (a list field) is
+ * Self pick up/Courier delivery/Merchant delivery. The sibling
+ * {@code Delivery Method Precision} field (Precise Time/Delivery Ranges) is a
+ * distinct, currently-unmapped concept — not what this DTO's delivery field
+ * means.
  */
 @Component
 public class OfferingBubbleMapper {
@@ -53,14 +61,22 @@ public class OfferingBubbleMapper {
     static final String F_TYPE = "Offering Type";
 
     /**
-     * CONFIRMED field: "Offering Activity Status" (an option set). The GET
-     * {@code ?status=} param and writes pass 'Active'/'Inactive' verbatim —
-     * VERIFY those match the option set's actual values.
+     * CONFIRMED field and values: "Offering Activity Status" — the option set
+     * (`offering_activity_status`) is Draft/Active/Archive/Deleted (verified
+     * against the live Bubble editor 2026-07-01). "Inactive" is NOT a real
+     * value — see issue #94 for the UI-side fix that stopped writing it.
      */
     static final String F_STATUS = "Offering Activity Status";
 
-    /** From {@code delivery_type}: best match is "Delivery Method Precision". VERIFY. */
-    static final String F_DELIVERY_TYPE = "Delivery Method Precision";
+    /**
+     * CONFIRMED field and values: "Delivery Types" — a Bubble LIST field on the
+     * option set `delivery_types` (Self pick up / Courier delivery / Merchant
+     * delivery), verified 2026-07-01. Was previously pointed at "Delivery Method
+     * Precision" (Precise Time / Delivery Ranges) — a different, sibling field
+     * on the same Bubble type (confirmed by Courier Order exposing both as
+     * independent fields: `Delivery Type` + `Delivery Precision`). See issue #99.
+     */
+    static final String F_DELIVERY_TYPE = "Delivery Types";
 
     /** CONFIRMED: "Pay Options for this Offering" (a list of Pay Options). */
     static final String F_PAY_OPTIONS = "Pay Options for this Offering";
@@ -131,7 +147,7 @@ public class OfferingBubbleMapper {
         dto.setName(readString(r, F_NAME));
         dto.setType(readString(r, F_TYPE));
         dto.setStatus(readString(r, F_STATUS));
-        dto.setDeliveryType(readString(r, F_DELIVERY_TYPE));
+        dto.setDeliveryTypes(readStringArray(r, F_DELIVERY_TYPE));
         dto.setPayOptions(readStringArray(r, F_PAY_OPTIONS));
         dto.setPriceSource(readString(r, F_PRICE_SOURCE));
         dto.setDefaultType(readString(r, F_DEFAULT_TYPE));
@@ -150,7 +166,8 @@ public class OfferingBubbleMapper {
 
     /**
      * Bubble constraints JSON scoping to {@code companyId} (the merchant) plus an
-     * optional {@code status} equals-filter ('Active' / 'Inactive').
+     * optional {@code status} equals-filter ('Draft' / 'Active' / 'Archive' /
+     * 'Deleted').
      */
     public String buildConstraints(String companyId, String status) {
         List<Map<String, Object>> constraints = new ArrayList<>();
@@ -173,7 +190,7 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         // Parity with the old @PrePersist: default new offerings to 'Active'.
         body.put(F_STATUS, hasText(dto.getStatus()) ? dto.getStatus() : "Active");
-        putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
+        putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryTypes());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
         putIfPresent(body, F_PRICE_SOURCE, dto.getPriceSource());
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
@@ -189,7 +206,7 @@ public class OfferingBubbleMapper {
 
     /**
      * Partial body for PATCH /obj/offerings/{id} — only the PUT-contract fields
-     * that are non-null: name, type, status, deliveryType, payOptions,
+     * that are non-null: name, type, status, deliveryTypes, payOptions,
      * priceSource, defaultType, limitedVisibility, unlimitedQuantity,
      * quantityRequired, price, durationMinutes, storeIds, imageUrl.
      */
@@ -198,7 +215,7 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_NAME, dto.getName());
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_STATUS, dto.getStatus());
-        putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
+        putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryTypes());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
         putIfPresent(body, F_PRICE_SOURCE, dto.getPriceSource());
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
