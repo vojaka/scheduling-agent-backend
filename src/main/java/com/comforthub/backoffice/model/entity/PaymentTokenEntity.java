@@ -36,6 +36,10 @@ public class PaymentTokenEntity {
     @Column(name = "masked_pan")
     private String maskedPan;
 
+    /** Populated once #85's real token issuance carries a provider-reported expiry. */
+    @Column(name = "expires_at")
+    private OffsetDateTime expiresAt;
+
     @Column(name = "is_revoked", nullable = false)
     private Boolean isRevoked = false;
 

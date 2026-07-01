@@ -45,6 +45,13 @@ public class PaymentEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "is_recurring", nullable = false)
+    private Boolean isRecurring = false;
+
+    /** Links a REFUND/CHARGEBACK/CANCELLATION row back to the original charge. */
+    @Column(name = "parent_payment_id")
+    private UUID parentPaymentId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
