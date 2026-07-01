@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -145,13 +146,13 @@ class MoneyMinorUnitsTest {
                 .build();
 
         lenient().when(paymentRepository.findByProviderRef(anyString())).thenReturn(java.util.Optional.empty());
-        when(montonioClient.postRefund(any(), eq(null)))
+        when(montonioClient.postRefund(any(), isNull()))
                 .thenReturn(Collections.singletonMap("uuid", "refund-ref-1"));
 
         montonioProvider.refund(request);
 
         ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-        org.mockito.Mockito.verify(montonioClient).postRefund(captor.capture(), eq(null));
+        org.mockito.Mockito.verify(montonioClient).postRefund(captor.capture(), isNull());
 
         assertThat(captor.getValue().get("amount")).isEqualTo(expectedMajor);
     }
@@ -232,13 +233,13 @@ class MoneyMinorUnitsTest {
 
         lenient().when(paymentRepository.findByProviderRef(anyString())).thenReturn(java.util.Optional.empty());
         when(everyPayClient.config()).thenReturn(new com.comforthub.backoffice.payment.config.PaymentProperties.Everypay());
-        when(everyPayClient.post(eq("/payments/everypay-ref-1/refund"), any(), eq(null)))
+        when(everyPayClient.post(eq("/payments/everypay-ref-1/refund"), any(), isNull()))
                 .thenReturn(Collections.singletonMap("payment_reference", "refund-ref-1"));
 
         everyPayProvider.refund(request);
 
         ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-        org.mockito.Mockito.verify(everyPayClient).post(eq("/payments/everypay-ref-1/refund"), captor.capture(), eq(null));
+        org.mockito.Mockito.verify(everyPayClient).post(eq("/payments/everypay-ref-1/refund"), captor.capture(), isNull());
 
         assertThat(captor.getValue().get("amount")).isEqualTo(expectedMajor);
     }
