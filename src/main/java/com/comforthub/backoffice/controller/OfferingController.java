@@ -3,6 +3,7 @@ package com.comforthub.backoffice.controller;
 import com.comforthub.backoffice.client.BubbleClient;
 import com.comforthub.backoffice.client.BubbleClient.BubbleListResult;
 import com.comforthub.backoffice.dto.OfferingDto;
+import com.comforthub.backoffice.mapper.InventoryBubbleMapper;
 import com.comforthub.backoffice.mapper.OfferingBubbleMapper;
 import com.comforthub.backoffice.service.CurrentUserService;
 import org.springframework.data.domain.Page;
@@ -44,13 +45,16 @@ public class OfferingController {
 
     private final BubbleClient bubbleClient;
     private final OfferingBubbleMapper mapper;
+    private final InventoryBubbleMapper inventoryMapper;
     private final CurrentUserService currentUserService;
 
     public OfferingController(BubbleClient bubbleClient,
                               OfferingBubbleMapper mapper,
+                              InventoryBubbleMapper inventoryMapper,
                               CurrentUserService currentUserService) {
         this.bubbleClient = bubbleClient;
         this.mapper = mapper;
+        this.inventoryMapper = inventoryMapper;
         this.currentUserService = currentUserService;
     }
 
@@ -114,14 +118,12 @@ public class OfferingController {
      * Assign this offering to an inventory item.
      * Body: {@code { "inventoryId": "<id>" }}. Idempotent.
      *
-     * <p><b>INFERRED / UNVERIFIED:</b> the link is modelled as a LIST field on the
-     * offering (see {@link OfferingBubbleMapper}). We read the offering, add the
-     * inventory id to its list, and write the WHOLE list back via a Bubble PATCH.
-     * If the id is already present the write is skipped (idempotent). NOTE: unlike
-     * the old JPA version this does NOT verify the inventory record exists or
-     * belongs to the company — the Bubble inventory type/scope are not confirmed
-     * in this phase; that check should be added once the inventory schema is
-     * verified.
+     * <p>The inventory↔offering link is <b>bidirectional</b>: the offering carries
+     * an {@code Inventory} list and the inventory carries an {@code Offerings}
+     * list. Bubble list fields aren't auto-synced over the Data API, so we update
+     * <b>both</b> sides (read-modify-write each list; already-present ids are
+     * skipped). Verifies both records exist and belong to the company (restores
+     * the old JPA inventory-ownership check).
      */
     @PostMapping("/{id}/assign")
     public ResponseEntity<Void> assignToInventory(@PathVariable String id,
@@ -132,13 +134,24 @@ public class OfferingController {
         }
         return currentUserService.currentCompanyId()
                 .map(companyId -> {
-                    Map<String, Object> record = bubbleClient.get(OfferingBubbleMapper.TYPE, id);
-                    if (record == null || !companyId.equals(mapper.companyOf(record))) {
+                    Map<String, Object> offering = bubbleClient.get(OfferingBubbleMapper.TYPE, id);
+                    if (offering == null || !companyId.equals(mapper.companyOf(offering))) {
                         return ResponseEntity.notFound().<Void>build();
                     }
-                    Map<String, Object> patch = mapper.addInventoryToList(record, inventoryId);
-                    if (patch != null) { // null => already linked, nothing to write
-                        bubbleClient.update(OfferingBubbleMapper.TYPE, id, patch);
+                    Map<String, Object> inventory = bubbleClient.get(InventoryBubbleMapper.TYPE, inventoryId);
+                    if (inventory == null
+                            || !companyId.equals(inventoryMapper.companyOf(inventory))
+                            || inventoryMapper.isDeleted(inventory)) {
+                        return ResponseEntity.notFound().<Void>build();
+                    }
+                    // Keep both sides of the bidirectional link in sync.
+                    Map<String, Object> offeringPatch = mapper.addInventoryToList(offering, inventoryId);
+                    if (offeringPatch != null) {
+                        bubbleClient.update(OfferingBubbleMapper.TYPE, id, offeringPatch);
+                    }
+                    Map<String, Object> inventoryPatch = inventoryMapper.addOfferingToList(inventory, id);
+                    if (inventoryPatch != null) {
+                        bubbleClient.update(InventoryBubbleMapper.TYPE, inventoryId, inventoryPatch);
                     }
                     return ResponseEntity.ok().<Void>build();
                 })
@@ -149,9 +162,10 @@ public class OfferingController {
      * Remove the link between this offering and an inventory item.
      * Body: {@code { "inventoryId": "<id>" }}. Idempotent.
      *
-     * <p><b>INFERRED / UNVERIFIED:</b> read-modify-write of the offering's inferred
-     * inventory LIST field (see {@link OfferingBubbleMapper}). If the id is absent
-     * the write is skipped.
+     * <p>Removes the id from <b>both</b> sides of the bidirectional link (the
+     * offering's {@code Inventory} list and the inventory's {@code Offerings}
+     * list). The inventory-side update is best-effort — skipped if that record is
+     * missing or foreign.
      */
     @DeleteMapping("/{id}/assign")
     public ResponseEntity<Void> unassignFromInventory(@PathVariable String id,
@@ -162,13 +176,21 @@ public class OfferingController {
         }
         return currentUserService.currentCompanyId()
                 .map(companyId -> {
-                    Map<String, Object> record = bubbleClient.get(OfferingBubbleMapper.TYPE, id);
-                    if (record == null || !companyId.equals(mapper.companyOf(record))) {
+                    Map<String, Object> offering = bubbleClient.get(OfferingBubbleMapper.TYPE, id);
+                    if (offering == null || !companyId.equals(mapper.companyOf(offering))) {
                         return ResponseEntity.notFound().<Void>build();
                     }
-                    Map<String, Object> patch = mapper.removeInventoryFromList(record, inventoryId);
-                    if (patch != null) { // null => not linked, nothing to write
-                        bubbleClient.update(OfferingBubbleMapper.TYPE, id, patch);
+                    Map<String, Object> offeringPatch = mapper.removeInventoryFromList(offering, inventoryId);
+                    if (offeringPatch != null) {
+                        bubbleClient.update(OfferingBubbleMapper.TYPE, id, offeringPatch);
+                    }
+                    // Best-effort: also drop this offering from the inventory's list.
+                    Map<String, Object> inventory = bubbleClient.get(InventoryBubbleMapper.TYPE, inventoryId);
+                    if (inventory != null && companyId.equals(inventoryMapper.companyOf(inventory))) {
+                        Map<String, Object> inventoryPatch = inventoryMapper.removeOfferingFromList(inventory, id);
+                        if (inventoryPatch != null) {
+                            bubbleClient.update(InventoryBubbleMapper.TYPE, inventoryId, inventoryPatch);
+                        }
                     }
                     return ResponseEntity.ok().<Void>build();
                 })

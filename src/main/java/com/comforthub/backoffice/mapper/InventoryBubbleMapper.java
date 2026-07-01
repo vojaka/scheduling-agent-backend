@@ -132,6 +132,42 @@ public class InventoryBubbleMapper {
         return s.isBlank() ? List.of() : List.of(s);
     }
 
+    /**
+     * Compute the new offerings list with {@code offeringId} added (idempotent).
+     * Returns {@code null} when the id is already present (no write needed). Used
+     * to keep the inventory side of the bidirectional link in sync with the
+     * offering side (see {@code OfferingController} assign/unassign).
+     */
+    public Map<String, Object> addOfferingToList(Map<String, Object> record, String offeringId) {
+        List<String> current = offeringsOf(record);
+        if (current.contains(offeringId)) {
+            return null;
+        }
+        List<String> updated = new ArrayList<>(current);
+        updated.add(offeringId);
+        return offeringsListBody(updated);
+    }
+
+    /**
+     * Compute the new offerings list with {@code offeringId} removed (idempotent).
+     * Returns {@code null} when the id is absent (no write needed).
+     */
+    public Map<String, Object> removeOfferingFromList(Map<String, Object> record, String offeringId) {
+        List<String> current = offeringsOf(record);
+        if (!current.contains(offeringId)) {
+            return null;
+        }
+        List<String> updated = new ArrayList<>(current);
+        updated.removeIf(offeringId::equals);
+        return offeringsListBody(updated);
+    }
+
+    private Map<String, Object> offeringsListBody(List<String> ids) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put(F_OFFERINGS, ids);
+        return body;
+    }
+
     // --------------------------------------------------------------- writes
 
     /**
