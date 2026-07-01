@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -42,6 +43,21 @@ public class InventoryDto {
 
     /** Category ref at the Sub Category level (Bubble category id). */
     private String categoryId;
+
+    /**
+     * VAT rate, drawn from Bubble's "Taxes (VAT rates)" option set
+     * ({@code taxes} internal name). Carried as the option's display text
+     * (e.g. whatever the set's exact labels turn out to be) — Bubble's Data API
+     * returns/accepts option-set fields as plain strings, so no enum decoding is
+     * needed here. The set's values are not yet verified (see backend issue #92);
+     * this field passes whatever Bubble returns/accepts through as-is.
+     */
+    private String vat;
+
+    /** "Price Base (w VAT)" — the catalog item's base price, VAT included. */
+    private BigDecimal priceBaseWithVat;
+
+    private String description;
 
     private Boolean isDeleted;
 
