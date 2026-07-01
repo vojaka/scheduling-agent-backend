@@ -35,7 +35,7 @@ public class OfferingDto {
 
     private String type;
 
-    /** 'Active' | 'Inactive' */
+    /** 'Draft' | 'Active' | 'Archive' | 'Deleted' (Bubble "Offering Activity Status"). */
     private String status;
 
     private Boolean limitedVisibility;
@@ -44,7 +44,13 @@ public class OfferingDto {
 
     private Boolean quantityRequired;
 
-    private String deliveryType;
+    /**
+     * Fulfillment channel(s), from Bubble's "Delivery Types" option set (a list
+     * field): 'Self pick up' | 'Courier delivery' | 'Merchant delivery'. Was a
+     * singular {@code deliveryType: String} mapped to the wrong Bubble field
+     * ("Delivery Method Precision") — see backend issue #99.
+     */
+    private String[] deliveryTypes;
 
     /** Former PostgreSQL {@code text[]} — a list of pay-option codes. */
     private String[] payOptions;
