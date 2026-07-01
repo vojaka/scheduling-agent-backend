@@ -40,7 +40,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,monitor_containers.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
+          source: "pom.xml,Dockerfile,docker-compose.yml,init.sql,requirements.txt,sync.py,sync_all.py,run_sync.sh,sync_metabase_live.py,monitor_containers.sh,monitor_ssl.sh,prometheus.yml,alert.rules.yml,grafana/**,src/**,docs/**"
           target: "/app/scheduling-agent-backend"
           rm: false
 
@@ -146,7 +146,7 @@ jobs:
           script: |
             set -e
             cd /app/scheduling-agent-backend
-            chmod +x run_sync.sh monitor_containers.sh
+            chmod +x run_sync.sh monitor_containers.sh monitor_ssl.sh
             
             # Inject DEPLOY_WEBHOOK_URL into .env if present in secrets
             if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
@@ -158,6 +158,9 @@ jobs:
             
             # Setup status monitor cron (runs every 5 mins)
             (crontab -l 2>/dev/null | grep -Fq "monitor_containers.sh") || ( (crontab -l 2>/dev/null; echo "*/5 * * * * /bin/bash /app/scheduling-agent-backend/monitor_containers.sh >> /var/log/container_monitor.log 2>&1") | crontab - )
+            
+            # Setup SSL monitor cron (runs every Sunday at midnight)
+            (crontab -l 2>/dev/null | grep -Fq "monitor_ssl.sh") || ( (crontab -l 2>/dev/null; echo "0 0 * * 0 /bin/bash /app/scheduling-agent-backend/monitor_ssl.sh >> /var/log/ssl_monitor.log 2>&1") | crontab - )
 
       - name: Sync Metabase Dashboards (Dev -> Live)
         uses: appleboy/ssh-action@v1.0.3

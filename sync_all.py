@@ -95,6 +95,8 @@ def main():
 
     definitions = swagger.get("definitions", {})
 
+    schema_changes = []
+
     # Connect to PostgreSQL database
     try:
         conn = psycopg2.connect(DB_URI)
@@ -135,9 +137,8 @@ def main():
             cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '{db_table_name}')")
             table_exists = cur.fetchone()[0]
             
-            if not table_exists:
-                print(f"  Creating table {db_table_name}...")
                 cur.execute(create_sql)
+                schema_changes.append(f"🆕 Created Table: **{db_table_name}**")
             else:
                 print(f"  Table {db_table_name} already exists. Checking for missing columns...")
                 for raw_col, (db_col, db_type) in columns.items():
@@ -146,6 +147,7 @@ def main():
                     if not col_exists:
                         print(f"    Adding missing column: {db_col} {db_type}")
                         cur.execute(f'ALTER TABLE {db_table_name} ADD COLUMN "{db_col}" {db_type}')
+                        schema_changes.append(f"➕ Added Column to **{db_table_name}**: `{db_col}` ({db_type})")
 
         # Fetch Data
         data = get_bubble_data(table)
@@ -210,6 +212,22 @@ def main():
     print("\n====================================================")
     print("SUCCESS: Synced all Bubble tables to PostgreSQL!")
     print("====================================================")
+
+    # Send Schema Drift webhook notification if changes detected
+    if schema_changes:
+        webhook_url = os.environ.get("DEPLOY_WEBHOOK_URL")
+        if webhook_url:
+            print("Schema changes detected. Sending alert to Webhook...")
+            changes_str = "\n".join(schema_changes)
+            payload = {
+                "content": f"🛡️ **Bubble.io Schema Drift Alert: SQL tables altered**\n{changes_str}"
+            }
+            try:
+                requests.post(webhook_url, json=payload, timeout=10)
+            except Exception as e:
+                print(f"Failed to send schema alert to webhook: {e}")
+        else:
+            print("Schema changes detected but DEPLOY_WEBHOOK_URL is not set.")
 
 if __name__ == "__main__":
     main()
