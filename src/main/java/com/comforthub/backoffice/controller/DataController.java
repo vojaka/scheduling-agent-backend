@@ -1,8 +1,8 @@
 package com.comforthub.backoffice.controller;
 
+import com.comforthub.backoffice.dto.WorkerResponse;
 import com.comforthub.backoffice.model.entity.BubbleShiftEntity;
 import com.comforthub.backoffice.model.entity.BubbleStoreEntity;
-import com.comforthub.backoffice.model.entity.BubbleUserEntity;
 import com.comforthub.backoffice.repository.BubbleShiftRepository;
 import com.comforthub.backoffice.repository.BubbleStoreRepository;
 import com.comforthub.backoffice.repository.BubbleUserRepository;
@@ -47,9 +47,9 @@ public class DataController {
     }
 
     @GetMapping("/users")
-    public Page<BubbleUserEntity> getUsers(Pageable pageable) {
+    public Page<WorkerResponse> getUsers(Pageable pageable) {
         return currentUserService.currentCompanyId()
-                .map(companyId -> userRepository.findByCompanyId(companyId, pageable))
+                .map(companyId -> userRepository.findByCompanyId(companyId, pageable).map(WorkerResponse::from))
                 .orElseGet(Page::empty);
     }
 
