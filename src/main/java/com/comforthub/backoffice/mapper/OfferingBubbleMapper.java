@@ -5,8 +5,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +88,28 @@ public class OfferingBubbleMapper {
      */
     static final String F_INVENTORY_LIST = "Inventory";
 
+    // ===== Bubble-parity CRUD fields (Phase 5 §3/§5) — all INFERRED. The live
+    // Bubble schema/swagger was NOT reachable from CI (egress policy blocks
+    // comforthub.ee), so none of the keys below were confirmed against a real
+    // `offerings` record. A wrong key fails silently. VERIFY EACH before prod. =====
+
+    // Unit price (number). INFERRED — modelled on the CONFIRMED sibling
+    // "Price - Price Source", so the amount is likely "Price - Amount"; could
+    // also be plain "Price" / "Price - Fixed Price". VERIFY.
+    static final String F_PRICE = "Price - Amount";
+
+    // Service duration in minutes (number). INFERRED — "Duration"; could be
+    // "Duration Minutes" / "Service Duration". VERIFY.
+    static final String F_DURATION = "Duration";
+
+    // Stores this offering is available at — a Bubble LIST of Store ids.
+    // INFERRED — "Stores"; could be "Available Stores" / "Store". VERIFY.
+    static final String F_STORES = "Stores";
+
+    // Image (Bubble image/file field → URL string). INFERRED — "Image"; could be
+    // "Main Image" / "Photo". VERIFY.
+    static final String F_IMAGE = "Image";
+
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
 
@@ -114,6 +138,10 @@ public class OfferingBubbleMapper {
         dto.setLimitedVisibility(readBoolean(r, F_LIMITED_VISIBILITY));
         dto.setUnlimitedQuantity(readBoolean(r, F_UNLIMITED_QUANTITY));
         dto.setQuantityRequired(readBoolean(r, F_QUANTITY_REQUIRED));
+        dto.setPrice(readBigDecimal(r, F_PRICE));
+        dto.setDurationMinutes(readInteger(r, F_DURATION));
+        dto.setStoreIds(readStringListOrNull(r, F_STORES));
+        dto.setImageUrl(readString(r, F_IMAGE));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         return dto;
     }
@@ -152,6 +180,10 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_DURATION, dto.getDurationMinutes());
+        putIfPresent(body, F_STORES, dto.getStoreIds());
+        putIfPresent(body, F_IMAGE, dto.getImageUrl());
         return body;
     }
 
@@ -159,7 +191,7 @@ public class OfferingBubbleMapper {
      * Partial body for PATCH /obj/offerings/{id} — only the PUT-contract fields
      * that are non-null: name, type, status, deliveryType, payOptions,
      * priceSource, defaultType, limitedVisibility, unlimitedQuantity,
-     * quantityRequired.
+     * quantityRequired, price, durationMinutes, storeIds, imageUrl.
      */
     public Map<String, Object> toUpdateBody(OfferingDto dto) {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -173,6 +205,10 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_LIMITED_VISIBILITY, dto.getLimitedVisibility());
         putIfPresent(body, F_UNLIMITED_QUANTITY, dto.getUnlimitedQuantity());
         putIfPresent(body, F_QUANTITY_REQUIRED, dto.getQuantityRequired());
+        putIfPresent(body, F_PRICE, dto.getPrice());
+        putIfPresent(body, F_DURATION, dto.getDurationMinutes());
+        putIfPresent(body, F_STORES, dto.getStoreIds());
+        putIfPresent(body, F_IMAGE, dto.getImageUrl());
         return body;
     }
 
@@ -257,6 +293,11 @@ public class OfferingBubbleMapper {
         if (value instanceof String[] arr && arr.length == 0) {
             return;
         }
+        // An empty list means "not provided" here; skip it so a partial update
+        // never clears the field.
+        if (value instanceof Collection<?> c && c.isEmpty()) {
+            return;
+        }
         body.put(key, value);
     }
 
@@ -323,6 +364,42 @@ public class OfferingBubbleMapper {
             }
         }
         return out;
+    }
+
+    /** Like {@link #readStringList} but {@code null} when absent/empty (so {@code NON_NULL} omits it). */
+    private static List<String> readStringListOrNull(Map<String, Object> r, String key) {
+        if (r == null || r.get(key) == null) {
+            return null;
+        }
+        List<String> out = readStringList(r, key);
+        return out.isEmpty() ? null : out;
+    }
+
+    private static BigDecimal readBigDecimal(Map<String, Object> r, String key) {
+        String s = readString(r, key);
+        if (s == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Integer readInteger(Map<String, Object> r, String key) {
+        Object v = r == null ? null : r.get(key);
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return (int) Math.round(Double.parseDouble(String.valueOf(v).trim()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */
