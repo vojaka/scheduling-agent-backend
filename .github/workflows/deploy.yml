@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout repository
@@ -44,6 +45,34 @@ jobs:
           target: "/app/scheduling-agent-backend"
           rm: false
 
+      - name: Generate .env File on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/scheduling-agent-backend
+            # Generate the .env file from GitHub Environment secrets.
+            # Quoted heredoc delimiter (_EOF_SECRETS_) prevents the remote shell
+            # from expanding any $ characters inside secret values. The ${{ secrets.* }}
+            # placeholders are substituted by GitHub Actions before this script is sent,
+            # so the values never appear in git history or the workflow logs.
+            cat << '_EOF_SECRETS_' > .env
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            PGRST_JWT_SECRET=${{ secrets.PGRST_JWT_SECRET }}
+            APP_API_KEY=${{ secrets.APP_API_KEY }}
+            BUBBLE_API_TOKEN=${{ secrets.BUBBLE_API_TOKEN }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            METABASE_EMBED_SECRET=${{ secrets.METABASE_EMBED_SECRET }}
+            SUPABASE_API_KEY=${{ secrets.SUPABASE_API_KEY }}
+            DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}
+            _EOF_SECRETS_
+            # Lock down permissions so only the file owner can read or write it.
+            chmod 600 .env
+            echo ".env file generated and secured with 600 permissions."
+
       - name: Backup Database on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -57,7 +86,7 @@ jobs:
             if docker ps --format '{{.Names}}' | grep -q "^scheduling-db$"; then
               echo "Creating database backup of all databases (pg_dumpall)..."
               docker compose exec -T db pg_dumpall -U postgres > backups/backup_all_$(date +%F_%H%M%S).sql
-              
+
               echo "Cleaning up old backups (keeping last 5)..."
               cd backups
               (ls -t backup_all_*.sql 2>/dev/null || true) | tail -n +6 | xargs -I {} rm -- {} || true
@@ -111,22 +140,22 @@ jobs:
             if [ -d /app/scheduling-agent-backend_backup ]; then
               cd /app/scheduling-agent-backend
               docker compose down
-              
+
               # Restore code directory
               rm -rf /app/scheduling-agent-backend/*
               cp -r /app/scheduling-agent-backend_backup/* /app/scheduling-agent-backend/
-              
+
               # Start services to boot up database
               docker compose up -d db
               sleep 5
-              
+
               # Restore database from snapshot
               LATEST_BACKUP=$(ls -t backups/backup_all_*.sql | head -n1)
               if [ -n "$LATEST_BACKUP" ]; then
                 echo "Restoring database from $LATEST_BACKUP..."
                 docker compose exec -T db psql -U postgres < "$LATEST_BACKUP"
               fi
-              
+
               # Rebuild and restart services
               docker compose build backend
               docker compose up -d
@@ -147,18 +176,13 @@ jobs:
             set -e
             cd /app/scheduling-agent-backend
             chmod +x run_sync.sh monitor_containers.sh monitor_ssl.sh
-            
-            # Inject DEPLOY_WEBHOOK_URL into .env if present in secrets
-            if [ -n "${{ secrets.DEPLOY_WEBHOOK_URL }}" ]; then
-              grep -q "DEPLOY_WEBHOOK_URL" .env && sed -i 's|DEPLOY_WEBHOOK_URL=.*|DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}|' .env || echo "DEPLOY_WEBHOOK_URL=${{ secrets.DEPLOY_WEBHOOK_URL }}" >> .env
-            fi
-            
+
             # Setup sync cron
             (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
-            
+
             # Setup status monitor cron (runs every 5 mins)
             (crontab -l 2>/dev/null | grep -Fq "monitor_containers.sh") || ( (crontab -l 2>/dev/null; echo "*/5 * * * * /bin/bash /app/scheduling-agent-backend/monitor_containers.sh >> /var/log/container_monitor.log 2>&1") | crontab - )
-            
+
             # Setup SSL monitor cron (runs every Sunday at midnight)
             (crontab -l 2>/dev/null | grep -Fq "monitor_ssl.sh") || ( (crontab -l 2>/dev/null; echo "0 0 * * 0 /bin/bash /app/scheduling-agent-backend/monitor_ssl.sh >> /var/log/ssl_monitor.log 2>&1") | crontab - )
 
