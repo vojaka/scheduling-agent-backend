@@ -79,5 +79,4 @@ jobs:
             chmod +x run_sync.sh
             
             # Add to crontab if not exists
-            CRON_JOB="0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1"
-            (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab - )
+            (crontab -l 2>/dev/null | grep -Fq "run_sync.sh") || ( (crontab -l 2>/dev/null; echo "0 * * * * /bin/bash /app/scheduling-agent-backend/run_sync.sh >> /var/log/bubble_sync.log 2>&1") | crontab - )
