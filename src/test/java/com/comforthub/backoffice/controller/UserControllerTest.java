@@ -1,5 +1,6 @@
 package com.comforthub.backoffice.controller;
 
+import com.comforthub.backoffice.client.BubbleClient;
 import com.comforthub.backoffice.exception.ForbiddenException;
 import com.comforthub.backoffice.model.entity.BubbleUserEntity;
 import com.comforthub.backoffice.repository.BubbleUserRepository;
@@ -19,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,7 +41,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code CompanyControllerTest} / {@code ScheduleControllerSecurityTest}: the
  * security + {@code GlobalExceptionHandler} layers are real (owner gate → 403),
  * while collaborators are mocked so the assertions cover the controller wiring,
- * company scoping, role mapping and HTTP status mapping.
+ * company scoping, role mapping, HTTP status mapping and the #114 Bubble
+ * write-through (invite creates the Bubble user; the mirror keeps its id).
  */
 @WebMvcTest(UserController.class)
 @Import(SecurityConfig.class)
@@ -59,6 +62,9 @@ class UserControllerTest {
 
     @MockBean
     private WorkerInvitationService invitationService;
+
+    @MockBean
+    private BubbleClient bubbleClient;
 
     @MockBean
     private JwtDecoder jwtDecoder;
@@ -91,6 +97,60 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.maxHours").value(20));
 
         verify(currentUserService).requireOwner();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void invite_writesThroughToBubble_andKeepsBubbleIdOnMirrorRow() throws Exception {
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));
+        when(userRepository.findByCompanyIdAndEmailIgnoreCase(any(), any())).thenReturn(Collections.emptyList());
+        when(invitationService.invite(any(), any(), any())).thenReturn(Optional.empty());
+        when(bubbleClient.create(eq("user"), any())).thenReturn("bubble-user-1");
+        when(userRepository.save(any(BubbleUserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(post("/api/users/invite")
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"jane@example.com\",\"name\":\"Jane\",\"role\":\"Worker\",\"maxHours\":20}"))
+                .andExpect(status().isCreated());
+
+        // The Bubble create body uses the keys the ETL reads back (sync.py /
+        // BubbleUser aliases / comforthub_schema.md § User).
+        ArgumentCaptor<Object> bodyCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(bubbleClient).create(eq("user"), bodyCaptor.capture());
+        Map<String, Object> body = (Map<String, Object>) bodyCaptor.getValue();
+        org.junit.jupiter.api.Assertions.assertEquals("jane@example.com", body.get("email"));
+        org.junit.jupiter.api.Assertions.assertEquals("Jane", body.get("name"));
+        org.junit.jupiter.api.Assertions.assertEquals("Worker", body.get("role"));
+        org.junit.jupiter.api.Assertions.assertEquals(Boolean.FALSE, body.get("active"));
+        org.junit.jupiter.api.Assertions.assertEquals(COMPANY, body.get("Representing a Company"));
+        org.junit.jupiter.api.Assertions.assertEquals(0,
+                new BigDecimal("20").compareTo((BigDecimal) body.get("maxHours")));
+
+        // The mirror row stores the Bubble id — the hourly ETL upsert (keyed on
+        // bubble_id) lands on this same row, so no duplicate is ever created.
+        ArgumentCaptor<BubbleUserEntity> savedCaptor = ArgumentCaptor.forClass(BubbleUserEntity.class);
+        verify(userRepository).save(savedCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("bubble-user-1", savedCaptor.getValue().getBubbleId());
+    }
+
+    @Test
+    void invite_bubbleCreateFails_membershipStillCreated() throws Exception {
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));
+        when(userRepository.findByCompanyIdAndEmailIgnoreCase(any(), any())).thenReturn(Collections.emptyList());
+        when(invitationService.invite(any(), any(), any())).thenReturn(Optional.empty());
+        when(bubbleClient.create(eq("user"), any())).thenThrow(new RuntimeException("bubble down"));
+        when(userRepository.save(any(BubbleUserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(post("/api/users/invite")
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"jane@example.com\",\"name\":\"Jane\"}"))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<BubbleUserEntity> savedCaptor = ArgumentCaptor.forClass(BubbleUserEntity.class);
+        verify(userRepository).save(savedCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertNull(savedCaptor.getValue().getBubbleId());
     }
 
     @Test
@@ -128,6 +188,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.error").value("Forbidden"));
 
         verify(userRepository, never()).save(any());
+        verify(bubbleClient, never()).create(any(), any());
     }
 
     @Test
@@ -143,6 +204,7 @@ class UserControllerTest {
                 .andExpect(status().isConflict());
 
         verify(userRepository, never()).save(any());
+        verify(bubbleClient, never()).create(any(), any());
     }
 
     @Test
@@ -177,6 +239,38 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.email").value("old@example.com"));
 
         verify(currentUserService).requireOwner();
+    }
+
+    @Test
+    void update_withBubbleId_alsoPatchesBubbleRecord() throws Exception {
+        BubbleUserEntity synced = existingWorker();
+        synced.setBubbleId("bubble-user-1");
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(synced));
+        when(userRepository.save(any(BubbleUserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(put("/api/users/" + USER_ID)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"New Name\"}"))
+                .andExpect(status().isOk());
+
+        verify(bubbleClient).update(eq("user"), eq("bubble-user-1"), any());
+    }
+
+    @Test
+    void update_withoutBubbleId_skipsBubblePatch() throws Exception {
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(existingWorker()));
+        when(userRepository.save(any(BubbleUserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(put("/api/users/" + USER_ID)
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"New Name\"}"))
+                .andExpect(status().isOk());
+
+        verify(bubbleClient, never()).update(any(), any(), any());
     }
 
     @Test
