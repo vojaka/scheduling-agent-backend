@@ -199,6 +199,25 @@ public class OrderBubbleMapper {
         return readString(record, F_COMPANY);
     }
 
+    /** The individual customer an order belongs to (consumer-API ownership checks). */
+    public String customerOf(Map<String, Object> record) {
+        return readString(record, F_CUSTOMER);
+    }
+
+    /**
+     * Bubble constraints JSON scoping to the individual customer — used by the
+     * consumer API, where the data boundary is the authenticated Bubble user
+     * rather than a company.
+     */
+    public String customerConstraints(String customerUserId) {
+        try {
+            return objectMapper.writeValueAsString(
+                    List.of(constraint(F_CUSTOMER, "equals", customerUserId)));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to build Bubble constraints", e);
+        }
+    }
+
     // --------------------------------------------------------------- helpers
 
     private static Map<String, Object> constraint(String key, String type, Object value) {
