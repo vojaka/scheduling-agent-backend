@@ -136,7 +136,7 @@ def main():
         with conn.cursor() as cur:
             cur.execute(f"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '{db_table_name}')")
             table_exists = cur.fetchone()[0]
-            
+            if not table_exists:
                 cur.execute(create_sql)
                 schema_changes.append(f"🆕 Created Table: **{db_table_name}**")
             else:
