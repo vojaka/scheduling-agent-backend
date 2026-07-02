@@ -331,6 +331,57 @@ public class BubbleClient {
         }
     }
 
+    /**
+     * Run a Bubble <b>Workflow API</b> endpoint (POST {@code /wf/{workflow}}).
+     *
+     * <p>Unlike the Data API CRUD helpers above, this invokes a named backend
+     * workflow — Bubble's server-side business logic (cart machinery, address
+     * validation chains, Twilio verification, …). The consumer API proxies
+     * these rather than re-implementing the workflows' side effects.
+     *
+     * <p>The workflow base URL is derived from the configured Data API base by
+     * swapping the trailing {@code /obj} for {@code /wf} (same convention as
+     * {@link #uploadFile}). Bubble replies {@code {"status":"success",
+     * "response":{...}}}; the inner {@code response} map is returned (or the
+     * raw map when no envelope is present).
+     *
+     * @param workflow the Bubble workflow endpoint name, e.g.
+     *        {@code "adding_to_cart_attributes(be)"} or {@code "save_address"}
+     * @param params   JSON body parameters as documented per workflow
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> runWorkflow(String workflow, Map<String, Object> params) {
+        try {
+            log.info("Running Bubble workflow '{}'", workflow);
+            Map<String, Object> raw = addAuthHeader(
+                    restClient.post()
+                            .uri(java.net.URI.create(workflowBaseUrl() + "/" + workflow))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(params == null ? Map.of() : params))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+            if (raw == null) {
+                return Collections.emptyMap();
+            }
+            Object response = raw.get("response");
+            if (response instanceof Map) {
+                return (Map<String, Object>) response;
+            }
+            return raw;
+        } catch (Exception e) {
+            log.error("Failed to run Bubble workflow '{}': {}", workflow, e.getMessage());
+            throw new RuntimeException("Bubble workflow failed for " + workflow + ": " + e.getMessage(), e);
+        }
+    }
+
+    /** {@code .../api/1.1/wf}, derived from the configured {@code /obj} Data API base. */
+    private String workflowBaseUrl() {
+        String base = bubbleBaseUrl.endsWith("/obj")
+                ? bubbleBaseUrl.substring(0, bubbleBaseUrl.length() - 4)
+                : bubbleBaseUrl;
+        return base + "/wf";
+    }
+
     /** Delete a record. Bubble responds 204 No Content. */
     public void delete(String type, String id) {
         try {
