@@ -23,9 +23,9 @@ import java.util.Map;
  *
  * <p>Confirmed stock field display-keys (from the App-data view): {@code Store},
  * {@code Inventory} (references), {@code "Qnty in stock"} (the quantity),
- * {@code Created Date} / {@code Modified Date}. The store-side company key
- * ({@code "Company"}) comes from the existing {@code BubbleStore} mapping and
- * should still be verified.
+ * {@code Created Date} / {@code Modified Date}. The store-side company key is the
+ * VERIFIED raw store key ({@code company__single__custom____merchant}) shared
+ * with {@link StoreBubbleMapper} and {@code sync.py#sync_stores} — see below.
  *
  * <p>The {@code GET name} filter targets the <i>linked inventory's</i> name — a
  * cross-entity join a single stock constraint can't express — so it is accepted
@@ -45,8 +45,14 @@ public class StockBubbleMapper {
     // ===== Store type, used to resolve which stores belong to the company =====
     /** Bubble object type for stores. */
     public static final String STORE_TYPE = "store";
-    /** Store's company/merchant field — from the BubbleStore mapping (verify). */
-    static final String STORE_COMPANY_FIELD = "Company";
+    /**
+     * Store's company/merchant field. VERIFIED raw key from {@code sync.py#sync_stores}
+     * and {@link StoreBubbleMapper} (which read/write the live {@code store} type):
+     * {@code company__single__custom____merchant}. Previously mis-set to "Company",
+     * which returned no company stores and left the stock list (and its store
+     * column) empty. Live fix 2026-07-02.
+     */
+    static final String STORE_COMPANY_FIELD = "company__single__custom____merchant";
 
     /** Built-in Bubble created-date field, used as the default sort key. */
     public static final String SORT_CREATED_DATE = "Created Date";
