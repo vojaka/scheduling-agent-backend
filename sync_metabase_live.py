@@ -112,6 +112,9 @@ def main():
     live_url = "http://localhost:3002"
     email = "kim.smirnov@gmail.com"
     password = os.environ.get("METABASE_ADMIN_PASSWORD", "")
+    if not password:
+        print("METABASE_ADMIN_PASSWORD is empty or not set. Skipping dashboard sync.")
+        sys.exit(0)
     db_password = os.environ.get("POSTGRES_PASSWORD", "")
 
     # Wait for both services to be ready
