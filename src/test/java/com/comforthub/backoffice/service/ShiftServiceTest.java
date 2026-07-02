@@ -119,6 +119,30 @@ class ShiftServiceTest {
         verify(shiftRepository).save(any(BubbleShiftEntity.class));
     }
 
+    // ---------------------------------------------- #117 mirror-save is non-fatal
+
+    @Test
+    void create_mirrorSaveThrows_isNonFatal_andReturnsBubbleBackedResource() {
+        // Reproduces the live 500: Bubble accepts the write (authoritative), but the
+        // ETL-owned mirror table rejects the insert. The request must NOT 500 — the
+        // service returns the entity carrying the Bubble id + request data.
+        ShiftWriteRequest request = createRequest("2026-07-01T08:00:00Z", "2026-07-01T16:00:00Z", "user-1", "store-1", "STANDARD", "COMMITTED", "notes");
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of("company-1"));
+        when(bubbleClient.create(eq("shift"), any())).thenReturn("bubble-shift-1");
+        when(shiftRepository.save(any(BubbleShiftEntity.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("null value in column violates not-null constraint"));
+
+        BubbleShiftEntity result = shiftService.create(request);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getBubbleId()).isEqualTo("bubble-shift-1");
+        assertThat(result.getAssignedUser()).isEqualTo("user-1");
+        assertThat(result.getAssignedCompany()).isEqualTo("company-1");
+        // Bubble was still called (the authoritative write) and the save was attempted.
+        verify(bubbleClient).create(eq("shift"), any());
+        verify(shiftRepository).save(any(BubbleShiftEntity.class));
+    }
+
     @Test
     void update_patchesBubbleRecord_whenMirrorRowHasBubbleId() {
         UUID shiftId = UUID.randomUUID();
