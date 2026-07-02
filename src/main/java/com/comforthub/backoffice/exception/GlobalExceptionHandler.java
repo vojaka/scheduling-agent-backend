@@ -21,4 +21,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("error", "Forbidden", "message", ex.getMessage()));
     }
+
+    /**
+     * Bad input surfaced by service/mapper layers (e.g. an unparseable timestamp
+     * or an unknown status) maps to 400, not a misleading 500, for controllers
+     * that do not declare their own {@code IllegalArgumentException} handler.
+     * Controllers with a local handler (e.g. {@code ShiftController}) still take
+     * precedence.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "Bad Request", "message", String.valueOf(ex.getMessage())));
+    }
 }

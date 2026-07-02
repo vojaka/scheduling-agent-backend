@@ -27,8 +27,17 @@ import java.util.UUID;
  * the exact raw field keys the ETL reads back ({@code sync.py#sync_shifts} /
  * {@link com.comforthub.backoffice.model.BubbleShift}). The PostgreSQL mirror
  * row is kept warm for Metabase and stores the Bubble id ({@code bubble_id}),
- * so the hourly ETL upsert lands on the same row (dedupe-safe). Bubble failures
- * are best-effort: logged loudly, the mirror write still happens.
+ * so the hourly ETL upsert lands on the same row (dedupe-safe).
+ *
+ * <p><b>#117 (create-500 fix, live 2026-07-02):</b> the Bubble write is the
+ * AUTHORITATIVE step. The PostgreSQL mirror {@code save()} is best-effort: a
+ * mirror-save failure is logged loudly but never fails the request (the hourly
+ * ETL reconciles). The {@code bubble_shifts}/{@code shifts} table is owned by
+ * the Python ETL, so the app inserting into it can trip a constraint the entity
+ * does not satisfy — that must not surface as a 500 once Bubble has accepted the
+ * write. {@link #create(ShiftWriteRequest)} is therefore NOT {@code @Transactional}
+ * (an external Bubble call must not sit inside a DB transaction a later mirror
+ * failure would roll back).
  *
  * <p>Backoffice-created shifts are stamped with the caller's company so they
  * stay within the user's scope (see CurrentUserService).
@@ -72,12 +81,16 @@ public class ShiftService {
         return shiftRepository.findById(id);
     }
 
-    @Transactional
+    /**
+     * Create a shift. The Bubble write is authoritative; the PostgreSQL mirror
+     * save is best-effort so a mirror-only failure never 500s the request. NOT
+     * {@code @Transactional} on purpose — see the class doc.
+     */
     public BubbleShiftEntity create(ShiftWriteRequest request) {
         BubbleShiftEntity entity = new BubbleShiftEntity();
-        applyRequest(entity, request);
-        writeThroughCreate(entity);
-        return shiftRepository.save(entity);
+        applyRequest(entity, request);          // may throw IllegalArgumentException -> 400
+        writeThroughCreate(entity);             // authoritative Bubble write (best-effort logging inside)
+        return saveMirrorBestEffort(entity);    // mirror save must not fail the request
     }
 
     @Transactional
@@ -129,6 +142,26 @@ public class ShiftService {
         entity.setStatus(dto.getStatus());
         entity.setAssignedStore(dto.getAssignedStore());
         shiftRepository.save(entity);
+    }
+
+    // ------------------------------------------------- mirror persistence
+
+    /**
+     * #117: persist the mirror row, but treat a failure as non-fatal. Bubble has
+     * already accepted the write (the authoritative step), so a mirror insert that
+     * trips an ETL-owned constraint must NOT 500 the request — the hourly ETL will
+     * reconcile the row. Returns the entity so the caller always has a resource
+     * built from the Bubble id + request data to hand back.
+     */
+    private BubbleShiftEntity saveMirrorBestEffort(BubbleShiftEntity entity) {
+        try {
+            return shiftRepository.save(entity);
+        } catch (Exception e) {
+            log.error("Shift mirror save FAILED (bubbleId={}, user={}, start={}) — Bubble holds the "
+                    + "authoritative record; the hourly ETL will reconcile the mirror: {}",
+                    entity.getBubbleId(), entity.getAssignedUser(), entity.getStartTime(), e.getMessage());
+            return entity;
+        }
     }
 
     // ------------------------------------------------- Bubble write-through

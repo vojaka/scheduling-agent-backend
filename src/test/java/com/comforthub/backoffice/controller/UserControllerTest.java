@@ -153,6 +153,35 @@ class UserControllerTest {
         org.junit.jupiter.api.Assertions.assertNull(savedCaptor.getValue().getBubbleId());
     }
 
+    // ------------------------------------------------- #117 mirror-save is non-fatal
+
+    @Test
+    void invite_mirrorSaveThrows_stillReturns201_fromInMemoryEntity() throws Exception {
+        // Reproduces the live 500 on POST /api/users/invite: Bubble accepts the user
+        // (authoritative), then the ETL-owned users table rejects the mirror insert.
+        // The request must still be 201, answered from the in-memory entity.
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));
+        when(userRepository.findByCompanyIdAndEmailIgnoreCase(any(), any())).thenReturn(Collections.emptyList());
+        when(invitationService.invite(any(), any(), any())).thenReturn(Optional.empty());
+        when(bubbleClient.create(eq("user"), any())).thenReturn("bubble-user-1");
+        when(userRepository.save(any(BubbleUserEntity.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("not-null constraint"));
+
+        mockMvc.perform(post("/api/users/invite")
+                        .with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"jane@example.com\",\"name\":\"Jane\",\"role\":\"Worker\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Jane"))
+                .andExpect(jsonPath("$.role").value("Worker"))
+                .andExpect(jsonPath("$.email").value("jane@example.com"))
+                .andExpect(jsonPath("$.active").value(false));
+
+        // Bubble (authoritative) was still called, and the mirror save was attempted.
+        verify(bubbleClient).create(eq("user"), any());
+        verify(userRepository).save(any(BubbleUserEntity.class));
+    }
+
     @Test
     void invite_ownerRole_isStoredAsMerchant() throws Exception {
         when(currentUserService.currentCompanyId()).thenReturn(Optional.of(COMPANY));

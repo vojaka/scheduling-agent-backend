@@ -55,6 +55,7 @@ class OrderControllerTest {
         r.put("Merchant", company);
         r.put("Store", "store-1");
         r.put("Customer (Individual)", "customer-1");
+        r.put("customer_name", "Jane Buyer");
         r.put("Type", type);
         r.put("Total W VAT Order Amount", 22.5);
         r.put("S - Order Payment Status", paymentStatus);
@@ -79,11 +80,27 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.content[0].companyId").value("company-1"))
                 .andExpect(jsonPath("$.content[0].storeId").value("store-1"))
                 .andExpect(jsonPath("$.content[0].customerId").value("customer-1"))
+                // Client name round-trips from the Bubble customer_name key.
+                .andExpect(jsonPath("$.content[0].customerName").value("Jane Buyer"))
                 .andExpect(jsonPath("$.content[0].type").value("One Off Purchase"))
                 .andExpect(jsonPath("$.content[0].amount").value(22.5))
                 .andExpect(jsonPath("$.content[0].paymentStatus").value("Paid"))
                 .andExpect(jsonPath("$.content[0].status").value("preparation_in_progress"))
                 .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    void getOrders_mapsCustomerName_fromCustomerNameKey() throws Exception {
+        when(currentUserService.currentCompanyId()).thenReturn(Optional.of("company-1"));
+        BubbleListResult result = new BubbleListResult();
+        result.setResults(List.of(rawOrder("order-1", "company-1", "Not started", "One Off Purchase", "Paid")));
+        result.setCount(1);
+        result.setRemaining(0);
+        when(bubbleClient.list(eq("order"), any(), any(), any(), any(), eq(true))).thenReturn(result);
+
+        mockMvc.perform(get("/api/orders").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].customerName").value("Jane Buyer"));
     }
 
     @Test
