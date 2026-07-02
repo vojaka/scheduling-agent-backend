@@ -68,11 +68,11 @@ public class StoreBubbleMapper {
         String id = readString(r, "_id");
         dto.setId(id);
         dto.setBubbleId(id);
-        dto.setCompanyId(readString(r, F_COMPANY));
-        dto.setName(readString(r, F_NAME));
-        dto.setAvailabilityId(readString(r, F_AVAILABILITY));
-        dto.setIsDeleted(readBoolean(r, F_IS_DELETED));
-        dto.setCreatedAt(readInstant(r, "Created Date"));
+        dto.setCompanyId(readString(r, F_COMPANY, "Company", "company"));
+        dto.setName(readString(r, F_NAME, "Store Name", "name"));
+        dto.setAvailabilityId(readString(r, F_AVAILABILITY, "Availability", "availability"));
+        dto.setIsDeleted(readBoolean(r, F_IS_DELETED, "isDeleted", "is_deleted"));
+        dto.setCreatedAt(readInstant(r, "Created Date", "created_at"));
         return dto;
     }
 
@@ -86,6 +86,15 @@ public class StoreBubbleMapper {
     public String buildConstraints(String companyId) {
         List<Map<String, Object>> constraints = new ArrayList<>();
         constraints.add(constraint(F_COMPANY, "equals", companyId));
+        constraints.add(constraint(F_IS_DELETED, "not equal", true));
+        return writeConstraints(constraints);
+    }
+
+    /**
+     * Bubble constraints JSON scoping to active (non-deleted) stores across all merchants.
+     */
+    public String activeStoresConstraints() {
+        List<Map<String, Object>> constraints = new ArrayList<>();
         constraints.add(constraint(F_IS_DELETED, "not equal", true));
         return writeConstraints(constraints);
     }
@@ -150,45 +159,57 @@ public class StoreBubbleMapper {
         }
     }
 
-    private static String readString(Map<String, Object> r, String key) {
+    private static String readString(Map<String, Object> r, String... keys) {
         if (r == null) {
             return null;
         }
-        Object v = r.get(key);
-        if (v == null) {
-            return null;
+        for (String key : keys) {
+            Object v = r.get(key);
+            if (v != null) {
+                String s = String.valueOf(v);
+                if (!s.isBlank()) return s;
+            }
         }
-        String s = String.valueOf(v);
-        return s.isBlank() ? null : s;
+        return null;
     }
 
-    private static Boolean readBoolean(Map<String, Object> r, String key) {
+    private static Boolean readBoolean(Map<String, Object> r, String... keys) {
         if (r == null) {
             return null;
         }
-        Object v = r.get(key);
-        if (v == null) {
-            return null;
+        for (String key : keys) {
+            Object v = r.get(key);
+            if (v != null) {
+                if (v instanceof Boolean b) {
+                    return b;
+                }
+                String s = String.valueOf(v).trim();
+                if (s.equalsIgnoreCase("true") || s.equalsIgnoreCase("yes")) {
+                    return Boolean.TRUE;
+                }
+                if (s.equalsIgnoreCase("false") || s.equalsIgnoreCase("no")) {
+                    return Boolean.FALSE;
+                }
+            }
         }
-        if (v instanceof Boolean b) {
-            return b;
-        }
-        return Boolean.valueOf(String.valueOf(v));
+        return null;
     }
 
     /** Bubble returns dates as epoch milliseconds; surface them as ISO-8601. */
-    private static String readInstant(Map<String, Object> r, String key) {
+    private static String readInstant(Map<String, Object> r, String... keys) {
         if (r == null) {
             return null;
         }
-        Object v = r.get(key);
-        if (v == null) {
-            return null;
+        for (String key : keys) {
+            Object v = r.get(key);
+            if (v != null) {
+                if (v instanceof Number n) {
+                    return Instant.ofEpochMilli(n.longValue()).toString();
+                }
+                String s = String.valueOf(v);
+                if (!s.isBlank()) return s;
+            }
         }
-        if (v instanceof Number n) {
-            return Instant.ofEpochMilli(n.longValue()).toString();
-        }
-        String s = String.valueOf(v);
-        return s.isBlank() ? null : s;
+        return null;
     }
 }

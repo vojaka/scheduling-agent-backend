@@ -7,6 +7,7 @@ import com.comforthub.backoffice.mapper.CategoryBubbleMapper;
 import com.comforthub.backoffice.mapper.InventoryBubbleMapper;
 import com.comforthub.backoffice.mapper.OfferingBubbleMapper;
 import com.comforthub.backoffice.mapper.StockBubbleMapper;
+import com.comforthub.backoffice.mapper.StoreBubbleMapper;
 import com.comforthub.backoffice.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ConsumerCatalogController.class)
 @Import({SecurityConfig.class, CategoryBubbleMapper.class, InventoryBubbleMapper.class,
-        OfferingBubbleMapper.class, StockBubbleMapper.class, ConsumerCatalogScope.class})
+        OfferingBubbleMapper.class, StockBubbleMapper.class, ConsumerCatalogScope.class, StoreBubbleMapper.class})
 class ConsumerCatalogControllerTest {
 
     @Autowired
@@ -131,5 +132,20 @@ class ConsumerCatalogControllerTest {
     void catalog_requiresJwt() throws Exception {
         mockMvc.perform(get("/api/consumer/catalog/products"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getStores_returnsActiveStores() throws Exception {
+        Map<String, Object> store = new LinkedHashMap<>();
+        store.put("_id", "store-1");
+        store.put("store_name_text", "Store One");
+        store.put("isdeleted_boolean", false);
+
+        when(bubbleClient.list(eq("store"), any(), any(), any())).thenReturn(resultOf(List.of(store)));
+
+        mockMvc.perform(get("/api/consumer/catalog/stores").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("store-1"))
+                .andExpect(jsonPath("$[0].name").value("Store One"));
     }
 }

@@ -27,7 +27,7 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.resourceserver.jwt.audiences}")
     private String audience;
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:8081}")
     private String allowedOrigins;
 
     @Bean

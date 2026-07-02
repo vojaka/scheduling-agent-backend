@@ -36,4 +36,10 @@ public class StoreDto {
 
     /** ISO-8601 instant (Bubble "Created Date"). */
     private String createdAt;
+
+    /** Physical address string resolved from Bubble. */
+    private String address;
+
+    /** Phone number resolved from Bubble. */
+    private String phone;
 }
