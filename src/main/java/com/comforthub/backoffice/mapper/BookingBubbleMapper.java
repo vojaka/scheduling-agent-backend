@@ -21,10 +21,7 @@ import java.util.Map;
  * Range End"}, worker = {@code "Worker"} (a User ref), and {@code "Service"} is
  * an Inventory ref.
  *
- * <h2>⚠️ Structural mismatch with the booking contract — needs a product call</h2>
- * The {@code events} type has <b>no company/merchant field, no store, and no
- * customer name/email text</b> (its customer is a {@code "Customer
- * (individual)"} User ref). Consequences, all flagged:
+ * <h2>⚠️ Structural notes — the events type has no company field</h2>
  * <ul>
  *   <li><b>Company scoping is indirect</b> via the booking's {@code Service} (an
  *       Inventory), whose {@code "Company"} field is confirmed. We resolve the
@@ -32,10 +29,11 @@ import java.util.Map;
  *       Bookings with no Service are excluded. <b>VERIFY</b> this is the intended
  *       ownership model (vs. scoping by the Worker's company).</li>
  *   <li>{@code storeId} / {@code customerName} / {@code customerEmail} have no
- *       {@code events} field and stay {@code null}.</li>
- *   <li><b>Create can't set the scope</b> — the DTO has no service id, so a
- *       created event won't be attributable to a company. Create is limited to
- *       title/time/worker; see {@code BookingController}.</li>
+ *       {@code events} field and stay {@code null} unless enriched via the
+ *       Cart Item / User hops.</li>
+ *   <li>#115: the DTO now carries {@code serviceId} (the {@code Service} ref), so
+ *       create/update can set the company scope — the controller validates it
+ *       against the caller's company inventories before writing.</li>
  * </ul>
  */
 @Component
@@ -88,7 +86,7 @@ public class BookingBubbleMapper {
      * Map one Bubble {@code events} record to the UI DTO. {@code companyId} is set
      * by the controller (events has no company field of its own). {@code storeId}
      * / {@code customerName} / {@code customerEmail} have no {@code events} field
-     * and are left null.
+     * and are left null (enriched by the controller's second hops).
      */
     public BookingDto toDto(Map<String, Object> r) {
         BookingDto dto = new BookingDto();
@@ -97,6 +95,7 @@ public class BookingBubbleMapper {
         dto.setBubbleId(id);
         dto.setTitle(readString(r, F_TITLE));
         dto.setWorkerId(readString(r, F_WORKER));
+        dto.setServiceId(readString(r, F_SERVICE));
         dto.setStartTime(readInstant(r, F_START));
         dto.setEndTime(readInstant(r, F_END));
         dto.setCreatedAt(readInstant(r, "Created Date"));
@@ -188,15 +187,15 @@ public class BookingBubbleMapper {
     // --------------------------------------------------------------- writes
 
     /**
-     * Body for POST /obj/events — title/time/worker only. NOTE: cannot set the
-     * {@code Service}/company scope (no service id on the DTO), so a created event
-     * is not attributable to a company until a Service is set elsewhere.
+     * Body for POST /obj/events — title/time/worker/service. The controller has
+     * already validated that {@code serviceId}/{@code workerId} belong to the
+     * caller's company (#115).
      */
     public Map<String, Object> toCreateBody(BookingDto dto) {
         return mutableFields(dto);
     }
 
-    /** Partial body for PATCH /obj/events/{id} — title/time/worker only. */
+    /** Partial body for PATCH /obj/events/{id} — title/time/worker/service. */
     public Map<String, Object> toUpdateBody(BookingDto dto) {
         return mutableFields(dto);
     }
@@ -207,6 +206,7 @@ public class BookingBubbleMapper {
         putIfPresent(body, F_START, dto.getStartTime());
         putIfPresent(body, F_END, dto.getEndTime());
         putIfPresent(body, F_WORKER, dto.getWorkerId());
+        putIfPresent(body, F_SERVICE, dto.getServiceId());
         return body;
     }
 

@@ -9,6 +9,7 @@ import com.comforthub.backoffice.model.BubbleShift;
 import com.comforthub.backoffice.service.BubbleSyncService;
 import com.comforthub.backoffice.service.CurrentUserService;
 import com.comforthub.backoffice.service.ScheduleOrchestrationService;
+import com.comforthub.backoffice.service.ShiftService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/schedule")
@@ -27,10 +29,20 @@ public class ScheduleController {
 
     private static final Logger log = LoggerFactory.getLogger(ScheduleController.class);
 
+    /**
+     * #115: Metabase dashboards the backoffice is allowed to embed. The Analytics
+     * page uses dashboard 2 ({@code AnalyticsPage.tsx} —
+     * {@code GET /dashboard-url?dashboardId=2}); no other dashboard id is
+     * referenced by the frontend or docs. Anything else is rejected with 400
+     * instead of being signed blindly into an embed token.
+     */
+    private static final Set<Integer> ALLOWED_DASHBOARD_IDS = Set.of(2);
+
     private final ScheduleOrchestrationService orchestrationService;
     private final BubbleClient bubbleClient;
     private final BubbleSyncService bubbleSyncService;
     private final CurrentUserService currentUserService;
+    private final ShiftService shiftService;
 
     @Value("${metabase.site.url:http://178.105.76.235:3000}")
     private String metabaseSiteUrl;
@@ -41,11 +53,13 @@ public class ScheduleController {
     public ScheduleController(ScheduleOrchestrationService orchestrationService,
                               BubbleClient bubbleClient,
                               BubbleSyncService bubbleSyncService,
-                              CurrentUserService currentUserService) {
+                              CurrentUserService currentUserService,
+                              ShiftService shiftService) {
         this.orchestrationService = orchestrationService;
         this.bubbleClient = bubbleClient;
         this.bubbleSyncService = bubbleSyncService;
         this.currentUserService = currentUserService;
+        this.shiftService = shiftService;
     }
 
     @GetMapping("/dashboard-url")
@@ -54,6 +68,12 @@ public class ScheduleController {
             @RequestParam(name = "company", required = false) String company,
             @RequestParam(name = "store", required = false) String store) {
         log.info("Generating Metabase embed URL for dashboard {}, company={}, store={}", dashboardId, company, store);
+
+        if (!ALLOWED_DASHBOARD_IDS.contains(dashboardId)) {
+            log.warn("Rejected dashboard-url request for non-allowlisted dashboard {}", dashboardId);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("status", "error", "message", "Unknown dashboardId: " + dashboardId));
+        }
 
         if (metabaseEmbedSecret == null || metabaseEmbedSecret.trim().isEmpty()) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -136,6 +156,7 @@ public class ScheduleController {
                         if (created != null && created.getId() != null) {
                             shiftDto.setId(created.getId());
                             successCount++;
+                            persistMirror(shiftDto);
                         }
                     } catch (Exception e) {
                         log.error("Failed to commit shift for user {}: {}", shiftDto.getAssignedUser(), e.getMessage());
@@ -172,6 +193,7 @@ public class ScheduleController {
                 if (created != null && created.getId() != null) {
                     createdIds.add(created.getId());
                     successCount++;
+                    persistMirror(new ShiftResponseDto(created));
                 } else {
                     failureCount++;
                 }
@@ -187,6 +209,20 @@ public class ScheduleController {
         result.put("failedCount", failureCount);
         result.put("createdIds", createdIds);
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * #114: after a shift is committed to Bubble (the source of truth), upsert it
+     * into the PostgreSQL mirror (keyed on {@code bubble_id}) so Metabase sees it
+     * before the next hourly ETL run. Best-effort — Bubble already has the row.
+     */
+    private void persistMirror(ShiftResponseDto dto) {
+        try {
+            shiftService.persistGenerated(dto);
+        } catch (Exception e) {
+            log.error("Failed to mirror committed shift {} into PostgreSQL (ETL will catch up): {}",
+                    dto.getId(), e.getMessage());
+        }
     }
 
     @ExceptionHandler(GeminiUnavailableException.class)

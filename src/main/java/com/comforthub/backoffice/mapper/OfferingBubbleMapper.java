@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +34,14 @@ public class OfferingBubbleMapper {
     static final String F_LIMITED_VISIBILITY = "Limited Visibility";
     static final String F_UNLIMITED_QUANTITY = "Q - Unlimited Quantity";
     static final String F_QUANTITY_REQUIRED = "Q - QNTY required";
+
+    /**
+     * VERIFIED (comforthub_schema.md § Offerings): {@code "Delivery Types"} — an
+     * option-set LIST ({@code delivery_types}: "Self pick up", "Courier delivery",
+     * "Merchant delivery"). Values pass through verbatim. Distinct from the
+     * single-value {@code "Delivery Method Precision"} above.
+     */
+    static final String F_DELIVERY_TYPES = "Delivery Types";
 
     static final String F_INVENTORY_LIST = "Inventory";
 
@@ -71,6 +79,7 @@ public class OfferingBubbleMapper {
         dto.setType(readString(r, F_TYPE));
         dto.setStatus(readString(r, F_STATUS));
         dto.setDeliveryType(readString(r, F_DELIVERY_TYPE));
+        dto.setDeliveryTypes(readStringList(r, F_DELIVERY_TYPES));
         dto.setPayOptions(readStringArray(r, F_PAY_OPTIONS));
         dto.setPriceSource(mapPriceSourceToUi(readString(r, F_PRICE_SOURCE)));
         dto.setDefaultType(readString(r, F_DEFAULT_TYPE));
@@ -112,6 +121,7 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         body.put(F_STATUS, hasText(dto.getStatus()) ? dto.getStatus() : "Active");
         putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
+        putIfPresent(body, F_DELIVERY_TYPES, dto.getDeliveryTypes());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
         putIfPresent(body, F_PRICE_SOURCE, mapPriceSourceToBubble(dto.getPriceSource()));
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
@@ -135,6 +145,7 @@ public class OfferingBubbleMapper {
         putIfPresent(body, F_TYPE, dto.getType());
         putIfPresent(body, F_STATUS, dto.getStatus());
         putIfPresent(body, F_DELIVERY_TYPE, dto.getDeliveryType());
+        putIfPresent(body, F_DELIVERY_TYPES, dto.getDeliveryTypes());
         putIfPresent(body, F_PAY_OPTIONS, dto.getPayOptions());
         putIfPresent(body, F_PRICE_SOURCE, mapPriceSourceToBubble(dto.getPriceSource()));
         putIfPresent(body, F_DEFAULT_TYPE, dto.getDefaultType());
@@ -157,7 +168,8 @@ public class OfferingBubbleMapper {
 
     /** Read the current inventory-id list off an offering record. */
     public List<String> inventoryIdsOf(Map<String, Object> record) {
-        return readStringList(record, F_INVENTORY_LIST);
+        List<String> ids = readStringList(record, F_INVENTORY_LIST);
+        return ids == null ? new ArrayList<>() : ids;
     }
 
     /**
@@ -210,6 +222,9 @@ public class OfferingBubbleMapper {
             return;
         }
         if (value instanceof String[] arr && arr.length == 0) {
+            return;
+        }
+        if (value instanceof Collection<?> c && c.isEmpty()) {
             return;
         }
         body.put(key, value);
