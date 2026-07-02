@@ -23,13 +23,21 @@ import java.util.Map;
  * the same keys. The six status values come from the {@code Order Progress
  * Status} option set.
  *
+ * <p><b>Customer name (read-side):</b> the order carries a {@code customer_name}
+ * text field (comforthub_schema.md § Order; mirrored by {@code orders.customer_name}
+ * in V3__promote_schema.sql). It is mapped read-side in {@link #toDto} so the
+ * Orders list shows the client name. NOTE: the exact live Bubble key for this
+ * field could not be re-confirmed against the swagger from CI (egress policy
+ * blocks {@code comforthub.ee}); {@code customer_name} rests on the schema doc +
+ * the mirror column and should be spot-checked live. It is read-only — create /
+ * update bodies still set the customer via the {@code Customer (Individual)}
+ * reference, so this change cannot affect writes.
+ *
  * <p><b>Schema gaps:</b> the Bubble {@code order} has no equivalent of several
  * former {@code OrderEntity} fields, so they are intentionally unmapped (left
  * null in the DTO) and never sent in filters or writes:
  * <ul>
  *   <li>order number — no field</li>
- *   <li>customer name — only a {@code Customer (Individual)} reference; the name
- *       lives on the linked Individual record (would need a join — follow-up)</li>
  *   <li>assigned worker — no field on the order</li>
  *   <li>ready-by date — no field</li>
  *   <li>notes — no field</li>
@@ -47,6 +55,8 @@ public class OrderBubbleMapper {
     static final String F_COMPANY        = "Merchant";                  // owning merchant — scope key
     static final String F_STORE          = "Store";
     static final String F_CUSTOMER       = "Customer (Individual)";
+    // Read-only display name of the customer. See class doc: verify the live key.
+    static final String F_CUSTOMER_NAME  = "customer_name";
     static final String F_TYPE           = "Type";
     static final String F_AMOUNT         = "Total W VAT Order Amount";
     static final String F_PAYMENT_STATUS = "S - Order Payment Status";
@@ -85,14 +95,15 @@ public class OrderBubbleMapper {
         dto.setCompanyId(readString(r, F_COMPANY));
         dto.setStoreId(readString(r, F_STORE));
         dto.setCustomerId(readString(r, F_CUSTOMER));
+        dto.setCustomerName(readString(r, F_CUSTOMER_NAME));
         dto.setType(readString(r, F_TYPE));
         dto.setAmount(readBigDecimal(r, F_AMOUNT));
         dto.setPaymentStatus(readString(r, F_PAYMENT_STATUS));
         dto.setStatus(statusFromBubble(readString(r, F_STATUS)));
         dto.setCreatedAt(readInstant(r, "Created Date"));
         dto.setUpdatedAt(readInstant(r, "Modified Date"));
-        // Unmapped on the Bubble order (see class doc): orderNr, customerName,
-        // assignedTo, readyBy, notes -> left null.
+        // Unmapped on the Bubble order (see class doc): orderNr, assignedTo,
+        // readyBy, notes -> left null.
         return dto;
     }
 
