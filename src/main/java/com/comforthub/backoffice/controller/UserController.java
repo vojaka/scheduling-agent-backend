@@ -44,6 +44,13 @@ import java.util.UUID;
  * convention as the Auth0 dispatch); the failure is logged loudly for manual
  * reconciliation. Wiring the invitee's eventual Auth0 {@code sub} onto their
  * row after signup remains out-of-band (see V2 migration notes).
+ *
+ * <p><b>#117 (invite-500 fix, live 2026-07-02):</b> the Bubble create is the
+ * AUTHORITATIVE step. The PostgreSQL mirror {@code save()} is best-effort: the
+ * {@code users} table is owned by the Python ETL, so an insert can trip a
+ * constraint the entity does not satisfy. Once Bubble has accepted the invite,
+ * a mirror-save failure must NOT surface as a 500 — it is logged loudly and the
+ * response is built from the in-memory entity; the hourly ETL reconciles.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -123,7 +130,9 @@ public class UserController {
 
         // #114 write-through: Bubble is the source of truth — also create the user
         // there so the invite is visible in Bubble and the hourly ETL round-trips
-        // it. Best-effort, same convention as the Auth0 dispatch above.
+        // it. Best-effort, same convention as the Auth0 dispatch above. This is the
+        // AUTHORITATIVE step: if it succeeds, the invite is a success regardless of
+        // the mirror.
         try {
             String bubbleId = bubbleClient.create(BUBBLE_USER_TYPE, bubbleUserCreateBody(request, user, companyId));
             if (bubbleId != null && !bubbleId.isBlank()) {
@@ -136,9 +145,25 @@ public class UserController {
                     + "will not exist in Bubble until reconciled): {}", email, e.getMessage());
         }
 
-        BubbleUserEntity saved = userRepository.save(user);
-        log.info("Invited {} to company {} as {} (bubbleId={})", email, companyId, saved.getRole(), saved.getBubbleId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(WorkerResponse.from(saved));
+        // #117: the mirror save is best-effort. The users table is ETL-owned, so an
+        // insert can trip a constraint the entity does not satisfy; once Bubble has
+        // accepted the invite that must NOT 500 the request. On failure we log
+        // loudly and answer from the in-memory entity (Bubble id + request data);
+        // the hourly ETL reconciles the mirror row.
+        BubbleUserEntity persisted = saveMirrorBestEffort(user, email);
+        log.info("Invited {} to company {} as {} (bubbleId={})", email, companyId, persisted.getRole(), persisted.getBubbleId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(WorkerResponse.from(persisted));
+    }
+
+    /** #117: persist the mirror row; a failure is logged and the entity returned unsaved. */
+    private BubbleUserEntity saveMirrorBestEffort(BubbleUserEntity user, String email) {
+        try {
+            return userRepository.save(user);
+        } catch (Exception e) {
+            log.error("User mirror save FAILED for {} (bubbleId={}) — Bubble holds the authoritative "
+                    + "record; the hourly ETL will reconcile the mirror: {}", email, user.getBubbleId(), e.getMessage());
+            return user;
+        }
     }
 
     /** POST /obj/user body — only the ETL-verified keys, only non-null values. */
